@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model Imovel {
+  id         Int       @id @default(autoincrement())
+  insc       String    @unique // "03.01.042.0036-001"
+  cod        String? // código interno
+  prop       String // proprietário
+  log        String? // logradouro
+  nr         String? // número
+  bai        String? // bairro
+  cep        String?
+  uso        String    @default("terreno") // terreno | construido | em_construcao
+  tp         String? // tipo de imóvel (texto livre)
+  st         String    @default("regular") // regular | em_fiscalizacao | para_revisao
+  at_cad     Float? // área do terreno cadastral (m²)
+  at_geo     Float? // área do terreno georreferenciada (m²)
+  ac_cad     Float? // área construída cadastral (m²)
+  ac_geo     Float? // área construída georreferenciada (m²)
+  num_pav    Int? // número de pavimentos
+  frac_ideal String? // fração ideal (ex: "1/4")
+  obs        String?
+  geo_dt     DateTime? // data do georreferenciamento
+  ativo      Boolean   @default(true)
+
+  // Campos SINTER / CADURB (seção 13 do PROMPT_GEOMAPLE_MVP.md)
+  cib          String? // Cadastro Imobiliário Brasileiro, retornado pelo SINTER
+  cib_status   String? // "Ativo" | ...
+  cib_dt       DateTime? // data da última transmissão/atualização do CIB
+  cadurb_tipo  Int? // tipoImovel CADURB: 1=territorial, 2=predial, 3=outro
+  tp_arq       Int? // tpArquitetonico CADURB
+  dest         Int? // destinacaoImovel CADURB
+  padrao       Int? // padraoConstrutivo CADURB
+  ano_constr   Int? // ano de construção (não enviar se cadurb_tipo=1)
+  valor_venal  Float?
+
+  // Geometria do terreno (PostGIS)
+  geom Unsupported("geometry(Polygon, 4326)")?
+  // Geometria da edificação (opcional)
+  geom_bld Unsupported("geometry(Polygon, 4326)")?
+
+  // Hierarquia: Unidade Autônoma
+  parentId Int?
+  parent   Imovel?  @relation("UAs", fields: [parentId], references: [id])
+  unidades Imovel[] @relation("UAs")
+
+  // Auditoria
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy Int?
+  user      User?    @relation(fields: [createdBy], references: [id])
+
+  @@index([parentId])
+  @@index([ativo])
+  @@index([geom], type: Gist)
+  @@index([geom_bld], type: Gist)
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  nome             String
+  login            String    @unique
+  email            String    @unique
+  senha            String // bcrypt hash
+  perm             String    @default("viewer") // admin | editor | viewer
+  ativo            Boolean   @default(true)
+  matricula        String? // matrícula funcional da prefeitura
+  setor            String? // setor/departamento
+  telefone         String?
+  primeiroAcesso   Boolean   @default(false)
+  tentativasFalhas Int       @default(0)
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  createdBy         Int?
+  criadoPor         User?  @relation("UserCriadoPor", fields: [createdBy], references: [id])
+  operadoresCriados User[] @relation("UserCriadoPor")
+
+  imoveis   Imovel[]
+  auditoria Auditoria[]
+}
+
+model Auditoria {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  acao      String // LOGIN | LOGIN_FALHA | SENHA_TROCA | USER_CRIADO | USER_EDITADO | USER_DESATIVADO | USER_REATIVADO | ...
+  entidade  String? // ex: "Imovel:42", "User:7"
+  detalhe   String? // JSON resumido da operação (sem dados sensíveis)
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Quadra {
+  id   Int     @id @default(autoincrement())
+  di   String
+  se   String
+  qu   String
+  cod  String?
+  obs  String?
+  geom Unsupported("geometry(Polygon, 4326)")?
+
+  @@unique([di, se, qu])
+}
+
+model Provisorio {
+  id     Int     @id @default(autoincrement())
+  nome   String
+  tipo   String // rural | levantamento | fiscalizacao
+  status String
+  obs    String?
+  geom   Unsupported("geometry(Polygon, 4326)")?
+}

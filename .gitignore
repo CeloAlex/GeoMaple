@@ -1,0 +1,29 @@
+# Dependências e builds
+**/node_modules/
+**/dist/
+**/dist-ssr/
+
+# Segredos — nunca versionar
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Material interno/confidencial (checklist do INICIO_DESENVOLVIMENTO.md seção 8):
+# protótipo de referência e especificação com detalhes da integração SINTER/RFB
+# não devem ser expostos publicamente.
+/SGCIM_v10.html
+/PROMPT_GEOMAPLE_MVP.md
+/Protótipo/
+/files.zip
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db

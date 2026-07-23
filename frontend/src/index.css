@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+@import "leaflet-draw/dist/leaflet.draw.css";
+
+@theme {
+  --color-navy: #1a3050;
+  --color-verde: #4a9c2a;
+  --color-ambar: #c9a227;
+  --color-ua: #6c3483;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
