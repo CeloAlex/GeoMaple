@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Sidebar } from './Sidebar'
-import { MapView, type Destino } from './Map/MapView'
+import { MapView, type CamadaWms, type Destino } from './Map/MapView'
 import { DetailPanel } from './DetailPanel'
 import { CadastroWizard } from './Wizard/CadastroWizard'
 import { QuadrasPanel } from './Quadras/QuadrasPanel'
@@ -28,6 +28,14 @@ export function MainLayout() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [imoveisVisiveis, setImoveisVisiveis] = useState<ImovelFeatureCollection>(SEM_IMOVEIS)
   const [camadasImportadas, setCamadasImportadas] = useState<CamadaImportada[]>([])
+  const [camadasWms, setCamadasWms] = useState<CamadaWms[]>([])
+
+  function buscarEndereco(destino: Destino, rotulo: string) {
+    setSelecionado(null)
+    setVoarPara(destino)
+    setAviso(`📍 ${rotulo}`)
+    setTimeout(() => setAviso(null), 5000)
+  }
 
   async function selecionarImovel(imovel: ImovelRegistro) {
     try {
@@ -71,11 +79,15 @@ export function MainLayout() {
         onAuditoria={() => setAuditoriaAberto(true)}
         onMinhaAtividade={() => setMinhaAtividadeAberto(true)}
         onSelecionarImovel={selecionarImovel}
+        onBuscarEndereco={buscarEndereco}
         recarregarArvoreEm={recarregarEm}
         imoveisVisiveis={imoveisVisiveis}
         camadasImportadas={camadasImportadas}
         onImportar={(camada) => setCamadasImportadas((cs) => [...cs, camada])}
         onLimparImportadas={() => setCamadasImportadas([])}
+        camadasWms={camadasWms}
+        onAdicionarWms={(camada) => setCamadasWms((cs) => [...cs, camada])}
+        onRemoverWms={(id) => setCamadasWms((cs) => cs.filter((c) => c.id !== id))}
       />
       <main className="relative flex-1">
         <MapView
@@ -85,8 +97,13 @@ export function MainLayout() {
           voarPara={voarPara}
           onDadosCarregados={setImoveisVisiveis}
           camadasImportadas={camadasImportadas}
+          camadasWms={camadasWms}
         />
-        <DetailPanel feature={selecionado} onClose={() => setSelecionado(null)} />
+        <DetailPanel
+          feature={selecionado}
+          onClose={() => setSelecionado(null)}
+          onAlterado={() => setRecarregarEm((n) => n + 1)}
+        />
         {aviso && (
           <div className="absolute top-4 left-1/2 z-1001 -translate-x-1/2 rounded bg-navy px-4 py-2 text-sm text-white shadow-lg">
             {aviso}

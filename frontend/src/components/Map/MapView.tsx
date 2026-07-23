@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, GeoJSON, LayersControl, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, GeoJSON, LayersControl, WMSTileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { Layer, PathOptions } from 'leaflet'
 import { api } from '../../api/client'
 import type { ImovelFeature, ImovelFeatureCollection } from '../../types/imovel'
@@ -12,6 +12,7 @@ import { Regua } from './Regua'
 import L from 'leaflet'
 
 export type Destino = { lat: number; lng: number; zoom?: number }
+export type CamadaWms = { id: string; nome: string; url: string; layers: string }
 
 const VAZIO: ImovelFeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -195,6 +196,7 @@ type Props = {
   voarPara?: Destino | null
   onDadosCarregados?: (fc: ImovelFeatureCollection) => void
   camadasImportadas?: CamadaImportada[]
+  camadasWms?: CamadaWms[]
 }
 
 export function MapView({
@@ -204,6 +206,7 @@ export function MapView({
   voarPara,
   onDadosCarregados,
   camadasImportadas,
+  camadasWms,
 }: Props) {
   const [dados, setDados] = useState<ImovelFeatureCollection>(VAZIO)
   const centro = useMunicipioStore((s) => s.municipio.centro)
@@ -257,6 +260,11 @@ export function MapView({
             <CamadasImportadas camadas={camadasImportadas} />
           </LayersControl.Overlay>
         )}
+        {camadasWms?.map((c) => (
+          <LayersControl.Overlay key={c.id} checked name={c.nome}>
+            <WMSTileLayer url={c.url} layers={c.layers} format="image/png" transparent />
+          </LayersControl.Overlay>
+        ))}
       </LayersControl>
       <BotoesGoogle />
       <Regua />
