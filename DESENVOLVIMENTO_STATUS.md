@@ -54,6 +54,7 @@ Referências do projeto: `INICIO_DESENVOLVIMENTO.md` (sequência de prompts orig
 | 7c | Trilha de auditoria completa | ✅ **concluída em 2026-07-23** |
 | 8 | Integração SINTER (CONFIDENCIAL) | ✅ backend + UI (modal de transmissão) |
 | 9 | Deploy Railway | ⛔ **não iniciado — aguardando ordem explícita do usuário** |
+| 10 | Paridade total de layout/UX com o protótipo (auditoria de 2026-07-23) | 🟡 **em andamento — ver seção 4a** |
 
 ---
 
@@ -246,6 +247,88 @@ original combinada com o usuário. Endereçados após o commit inicial, em workt
       cada movimento do mouse durante o desenho — complexidade e risco de regressão de
       performance desproporcionais ao valor para o MVP. Revisar com o usuário se isso vira
       prioridade real (ex.: se erros de sobreposição de polígono aparecerem na prática).
+
+---
+
+## 4a. Prompt 10 — Paridade total de layout/UX com o protótipo (2026-07-23)
+
+Depois do backlog residual, o usuário pediu uma auditoria completa do `SGCIM_v10.html`
+(menus, actions, tudo) porque sentia falta de "inúmeros menus e actions" — em especial
+funcionalidades do tipo "Google Earth". Um sub-agente leu o protótipo por completo e
+comparou item a item com o código real.
+
+**Achado central (decide a questão de custo de API):** nada no protótipo usa API paga do
+Google. Toda referência a "Google"/"Google Earth" no HTML é `window.open()` para Google
+Maps/Street View públicos (já replicado fielmente) e geocodificação via **Nominatim
+gratuito** (mesma abordagem já implementada no backlog residual). Não há Google Maps
+JavaScript API, Places, Elevation nem Photorealistic 3D Tiles no protótipo — é tudo
+Leaflet + tiles Esri/OSM gratuitos. **Não há necessidade de conta paga do Google Maps
+Platform para atingir paridade com o protótipo** — os gaps abaixo são só desenvolvimento
+com as mesmas ferramentas gratuitas já em uso. (Pesquisa de preços feita à parte: se um
+dia quisermos ir *além* do protótipo com uma visão 3D fotorrealista real, isso teria custo
+modesto — cota gratuita de 1.000 requisições/mês na Photorealistic 3D Tiles API, ~$6/1000
+requisições acima disso — mas é upgrade, não paridade.)
+
+Ordem de execução decidida (2026-07-23) — implementar sem esperar revisão prévia do
+usuário a cada fase, testando no browser e commitando ao final de cada uma, seguindo o
+mesmo padrão gradativo das Fases 1-4 anteriores:
+
+### Fase A — Shell visual da aplicação (maior gap de fidelidade de layout)
+- [ ] Barra de menu superior (Arquivo/Editar/Exibir/Ferramentas/GeoNetwork/Ajuda, estilo
+      dropdown) com os atalhos de teclado que o protótipo tem (Ctrl+N novo cadastro,
+      Ctrl+D duplicar/desenhar, Ctrl+P imprimir, etc. — mapear os reais do HTML).
+- [ ] Toolbar de ícones fixa (equivalente aos ~20 botões do protótipo: desenhar, medir,
+      alternar tiles, imprimir, exportar, atalho para usuários/quadras/conversão KML) —
+      pode reaproveitar ações que já existem na Sidebar, só precisa de uma segunda forma
+      de acesso mais parecida com o protótipo.
+- [ ] Barra de status inferior do mapa (coordenadas lat/lng do cursor, zoom atual, sistema
+      de coordenadas, contadores de imóveis/quadras visíveis).
+- [ ] Seta de norte + escala gráfica sobre o mapa (Leaflet tem plugins simples para isso,
+      ou dá para fazer com CSS/SVG puro sem dependência nova).
+- [ ] Legenda fixa no mapa (cores por tipo de registro: definitivo/provisório/quadra/UA —
+      já usamos essas cores, só falta a legenda visual).
+- [ ] Sidebar colapsável (`toggleSb` no protótipo) — confirmar se já existe algo parecido
+      antes de construir do zero.
+
+### Fase B — Ferramentas de mapa avançadas
+- [ ] Painel "Ponto georreferenciado": captura de coordenada por clique no mapa com
+      conversão DD/DMS/UTM, formulário de entrada manual de coordenada, lista de pontos
+      registrados na sessão (não precisa persistir no backend, é uma ferramenta de campo).
+- [ ] Entrada de polígono por tabela de coordenadas (colar lista de pontos ou importar CSV)
+      como alternativa a desenhar clicando no mapa — útil para levantamentos com GPS/estação
+      total que já produzem uma lista de coordenadas.
+- [ ] **Reconsiderar snap topológico (item 6 do backlog residual):** o protótipo tem
+      (`runTopoSnap`, painel com tolerância configurável) — não é só uma ideia nossa. Ainda
+      assim, avaliar uma versão mais simples primeiro (snap só ao vértice mais próximo
+      dentro de uma tolerância fixa, sem UI de configuração) antes de replicar o painel
+      completo, para não gastar todo o orçamento da fase nisso.
+- [ ] "Imprimir Mapa A4 Paisagem": impressão do mapa inteiro (título, observações, SRC/datum,
+      estatísticas), diferente da ficha por imóvel que já existe.
+- [ ] Croqui da ficha cadastral sobreposto a um recorte real da imagem de satélite (hoje é
+      só o esboço SVG sem imagem de fundo) — gap de fidelidade visual, não de dado.
+
+### Fase C — Catálogo GeoNetwork completo
+- [ ] Busca `getCapabilities` num servidor WMS/GeoNetwork informado pelo operador, listando
+      as camadas disponíveis para escolha (hoje só dá pra adicionar 1 camada manualmente
+      informando URL + nome técnico da layer — essa versão simples continua útil como
+      fallback quando o servidor não suporta `getCapabilities` ou o operador já sabe o nome
+      da layer).
+- [ ] Lista pesquisável/filtrável de camadas do catálogo, com toggle individual e persistência
+      da seleção durante a sessão.
+
+### Fase D — Conversão de arquivos importados em cadastros reais
+- [ ] Wizard de conversão KML/KMZ/GeoJSON → registro de Imóvel/Provisório real (mapeamento de
+      campos do arquivo para os campos do cadastro, validação, tela de resultado) — hoje a
+      importação só cria uma camada de referência visual, não vira registro no banco.
+
+### Fora de escopo por ora (funcionalidades mockadas no próprio protótipo)
+Dois itens do protótipo são **mockados com dados fictícios fixos** (arrays estáticos no
+HTML, sem parsing/cálculo real) — não são features funcionais no protótipo, então
+"replicar com fidelidade" significaria construir do zero, não copiar comportamento
+existente. Não entram nas fases acima; avaliar com o usuário como um projeto à parte se
+houver interesse real:
+- Importação de planilha em massa (XLSX/CSV, milhares de registros, LGPD/CPF criptografado)
+- Relatórios de "Duplicidades Cadastrais" e "Consistência por Quadra" (% de cobertura)
 
 ---
 
