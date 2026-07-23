@@ -5,6 +5,7 @@ import { ArvoreHierarquica } from './Sidebar/ArvoreHierarquica'
 import { Ferramentas } from './Sidebar/Ferramentas'
 import type { ImovelFeatureCollection, ImovelRegistro } from '../types/imovel'
 import type { CamadaImportada } from '../utils/importarGeo'
+import type { CamadaWms, Destino } from './Map/MapView'
 
 const PERFIL_LABEL: Record<string, string> = {
   admin: 'Administrador',
@@ -20,11 +21,15 @@ type Props = {
   onAuditoria: () => void
   onMinhaAtividade: () => void
   onSelecionarImovel: (imovel: ImovelRegistro) => void
+  onBuscarEndereco: (destino: Destino, rotulo: string) => void
   recarregarArvoreEm?: number
   imoveisVisiveis: ImovelFeatureCollection
   camadasImportadas: CamadaImportada[]
   onImportar: (camada: CamadaImportada) => void
   onLimparImportadas: () => void
+  camadasWms: CamadaWms[]
+  onAdicionarWms: (camada: CamadaWms) => void
+  onRemoverWms: (id: string) => void
 }
 
 export function Sidebar({
@@ -35,11 +40,15 @@ export function Sidebar({
   onAuditoria,
   onMinhaAtividade,
   onSelecionarImovel,
+  onBuscarEndereco,
   recarregarArvoreEm,
   imoveisVisiveis,
   camadasImportadas,
   onImportar,
   onLimparImportadas,
+  camadasWms,
+  onAdicionarWms,
+  onRemoverWms,
 }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const logout = useAuthStore((s) => s.logout)
@@ -57,7 +66,7 @@ export function Sidebar({
       </div>
 
       <div className="border-b border-white/10 p-4">
-        <Busca onSelecionar={onSelecionarImovel} />
+        <Busca onSelecionar={onSelecionarImovel} onBuscarEndereco={onBuscarEndereco} />
       </div>
 
       <div className="flex flex-1 flex-col overflow-y-auto p-4 text-sm text-white/70">
@@ -106,6 +115,9 @@ export function Sidebar({
             camadasImportadas={camadasImportadas}
             onImportar={onImportar}
             onLimparImportadas={onLimparImportadas}
+            camadasWms={camadasWms}
+            onAdicionarWms={onAdicionarWms}
+            onRemoverWms={onRemoverWms}
           />
         </div>
 

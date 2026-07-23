@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { api } from '../api/client'
 import type { ImovelFeature } from '../types/imovel'
 import { useAuthStore } from '../store/authStore'
 import { useMunicipioStore } from '../store/municipioStore'
@@ -7,7 +8,12 @@ import { USO_LABEL, STATUS_LABEL } from '../constants/imovel'
 import { exportarImovelGeoJSON, exportarImovelKML, imprimirFichaCadastral } from '../utils/exportarImovel'
 import { SinterModal } from './SinterModal'
 import { UAModal } from './UA/UAModal'
+import { EditarImovelPanel } from './EditarImovelPanel'
 import { HistoricoImovel } from './Auditoria/HistoricoImovel'
+
+function extrairErro(err: unknown, fallback: string) {
+  return (err as { response?: { data?: { erro?: string } } })?.response?.data?.erro ?? fallback
+}
 
 function formatarArea(m2: number) {
   return `${m2.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m²`
@@ -16,17 +22,35 @@ function formatarArea(m2: number) {
 type Props = {
   feature: ImovelFeature | null
   onClose: () => void
+  onAlterado: () => void
 }
 
-export function DetailPanel({ feature, onClose }: Props) {
+export function DetailPanel({ feature, onClose, onAlterado }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const municipio = useMunicipioStore((s) => s.municipio)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
   const [sinterAberto, setSinterAberto] = useState(false)
   const [uaAberto, setUaAberto] = useState(false)
+  const [editarAberto, setEditarAberto] = useState(false)
+  const [confirmandoExcluir, setConfirmandoExcluir] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
+  const [erroExcluir, setErroExcluir] = useState<string | null>(null)
 
   if (!feature) return null
   const imovel = feature.properties
+
+  async function excluir() {
+    setExcluindo(true)
+    setErroExcluir(null)
+    try {
+      await api.delete(`/api/imoveis/${imovel.id}`)
+      onAlterado()
+      onClose()
+    } catch (err) {
+      setErroExcluir(extrairErro(err, 'Não foi possível excluir o imóvel'))
+      setExcluindo(false)
+    }
+  }
 
   const area = imovel.at_geo ?? imovel.at_cad
   const c = centroidePoligono(feature.geometry)
@@ -121,6 +145,52 @@ export function DetailPanel({ feature, onClose }: Props) {
       )}
 
       {podeEditar && (
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={() => setEditarAberto(true)}
+            className="flex-1 rounded border border-navy py-2 text-sm font-medium text-navy hover:bg-navy/5"
+          >
+            ✏️ Editar
+          </button>
+          <button
+            onClick={() => setConfirmandoExcluir(true)}
+            className="flex-1 rounded border border-red-300 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+          >
+            🗑️ Excluir
+          </button>
+        </div>
+      )}
+
+      {confirmandoExcluir && (
+        <div className="mt-3 rounded border border-red-300 bg-red-50 p-3 text-sm">
+          <p className="text-red-800">
+            Confirma a exclusão do imóvel <span className="font-mono">{imovel.insc}</span>? Esta ação não pode ser
+            desfeita.
+          </p>
+          {erroExcluir && <p className="mt-2 text-xs text-red-700">{erroExcluir}</p>}
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              onClick={() => {
+                setConfirmandoExcluir(false)
+                setErroExcluir(null)
+              }}
+              disabled={excluindo}
+              className="rounded border border-gray-300 bg-white px-3 py-1 text-xs hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={excluir}
+              disabled={excluindo}
+              className="rounded bg-red-700 px-3 py-1 text-xs font-medium text-white hover:bg-red-800 disabled:opacity-60"
+            >
+              {excluindo ? 'Excluindo…' : 'Confirmar exclusão'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {podeEditar && (
         <button
           onClick={() => setSinterAberto(true)}
           className="mt-3 w-full rounded bg-navy py-2 text-sm font-medium text-white hover:bg-navy/90"
@@ -135,6 +205,17 @@ export function DetailPanel({ feature, onClose }: Props) {
 
       {uaAberto && (
         <UAModal paiId={imovel.id} paiInsc={imovel.insc} paiProp={imovel.prop} onClose={() => setUaAberto(false)} />
+      )}
+
+      {editarAberto && (
+        <EditarImovelPanel
+          imovelId={imovel.id}
+          onClose={() => setEditarAberto(false)}
+          onSalvo={() => {
+            onAlterado()
+            onClose()
+          }}
+        />
       )}
 
       <HistoricoImovel imovelId={imovel.id} />

@@ -68,23 +68,23 @@ comparando com o código real. Vai sendo atualizado conforme os itens forem fech
 | Wizard cadastro 5 etapas | ✅ | ✅ |
 | Herança de polígono (mesmo lote) | ✅ | ✅ |
 | Delimitação de edificação (no wizard) | ✅ | ✅ |
-| Edição de imóvel existente via wizard | ❌ | ❌ pendente |
-| Exclusão de imóvel (UI) | 🟡 (só backend) | 🟡 pendente botão na UI |
+| **Edição de imóvel existente** | ❌ | ✅ **concluído (painel dedicado, ver seção 4)** |
+| **Exclusão de imóvel (UI)** | 🟡 (só backend) | ✅ **concluído** |
 | **Unidades Autônomas — UI (CRUD, herança)** | 🟡 (só backend) | ✅ **concluído** |
-| Edição de geometria pós-cadastro (fora do wizard) | ❌ | ❌ pendente |
+| **Edição de geometria pós-cadastro (fora do wizard)** | ❌ | ✅ **concluído (mesmo painel de edição)** |
 | **Quadras georreferenciadas (backend + UI)** | ❌ | ✅ **concluído** |
 | **Delimitações provisórias (backend + UI)** | ❌ | ✅ **concluído** |
 | **Toggle de camadas do mapa (satélite/OSM/Quadras/Provisórios/Imóveis/importadas)** | ❌ | ✅ **concluído** |
 | **Árvore hierárquica Distrito→Setor→Quadra→Imóvel** | ❌ | ✅ **concluído** |
 | **Busca (inscrição/endereço/proprietário)** | ❌ | ✅ **concluído** |
-| Filtros rápidos | ❌ | ❌ pendente |
-| Geocodificação por endereço (Nominatim) | ❌ | ❌ pendente |
+| **Filtros rápidos (status: Regular/Fiscalização/Revisão)** | ❌ | ✅ **concluído** |
+| **Geocodificação por endereço (Nominatim)** | ❌ | ✅ **concluído** |
 | **Ferramenta régua (distância em tempo real)** | ❌ | ✅ **concluído (gesto de fechar linha não reconfirmado após correção de bug — ver log da sessão)** |
 | **Import KML/GeoJSON (camada de referência)** | ❌ | ✅ **concluído e testado ponta a ponta** |
 | **Export GeoJSON/KML (imóvel) / CSV (visíveis)** | ❌ | ✅ **concluído (mecanismo confirmado sem erro; arquivo em disco não verificável neste ambiente)** |
 | **Impressão de ficha cadastral** | ❌ | ✅ **concluído (diálogo nativo de impressão confirmado abrindo — recomendo conferência manual do layout)** |
-| Topologia (snap entre polígonos vizinhos) | ❌ | ❌ pendente |
-| GeoNetwork / WMS externo | ❌ | ❌ pendente (fora do escopo do MVP real, avaliar se vale a pena) |
+| Topologia (snap entre polígonos vizinhos) | ❌ | ❌ **fora do escopo do MVP por ora — ver justificativa na seção 4** |
+| **GeoNetwork / WMS externo** | ❌ | ✅ **concluído (camada WMS genérica configurável pelo operador — ver seção 4)** |
 | **Google Maps / Street View (links reais)** | ❌ | ✅ **concluído** |
 | Tiles de satélite | ✅ | ✅ |
 | **SINTER/CADURB (payload, transmissão, preview)** | ❌ | ✅ **concluído** |
@@ -196,8 +196,56 @@ comparando com o código real. Vai sendo atualizado conforme os itens forem fech
 
 ### Depois de tudo isso
 - [x] Todas as 4 fases do backlog concluídas e testadas — pronto para `git init` + commit
-- [ ] `git init` + primeiro commit (repositório ainda não existe — nem em `GeoMaple/` nem em `frontend/`)
-- [ ] **Só então**, se autorizado, Prompt 9 (deploy Railway)
+- [x] `git init` + primeiro commit (`c0e68e6`, raiz do repositório em `GeoMaple/`, 121 arquivos,
+      `.gitignore` excluindo material confidencial — protótipo, especificação, `files.zip`)
+- [ ] **Só então**, se autorizado, Prompt 9 (deploy Railway) — continua não iniciado
+
+### Backlog residual (fora das 4 fases combinadas) — ✅ 6 de 7 concluídos (2026-07-23)
+Itens levantados na auditoria de cobertura que não faziam parte da ordem de prioridade
+original combinada com o usuário. Endereçados após o commit inicial, em worktree isolado
+(`worktree-frolicking-crunching-koala`).
+
+- [x] **1. Edição de imóvel existente** — `frontend/src/components/EditarImovelPanel.tsx`
+      (painel novo, não é o wizard). Reaproveita os componentes `Step2Localizacao`,
+      `Step3Geo`, `Step4Cadastrais` do wizard fora do fluxo de 5 etapas — carrega o registro
+      e a geometria atuais (`GET /api/imoveis/:id` + `/geometria`), monta o formulário
+      pré-preenchido, salva via `PUT /api/imoveis/:id` (+ `PUT .../geometria` só se a
+      geometria mudou). Testado no browser: editar proprietário, salvar, reabrir por busca
+      e confirmar persistência.
+- [x] **2. Botão de exclusão de imóvel na UI** — rota `DELETE /api/imoveis/:id` já existia
+      (soft-delete, `ativo:false`, bloqueia com 409 se houver Unidades Autônomas ativas
+      vinculadas). Botão "🗑️ Excluir" no `DetailPanel.tsx` com confirmação inline (nunca
+      `window.confirm`). Testado no browser **os dois caminhos**: exclusão bloqueada (409,
+      mensagem do backend exibida corretamente) num imóvel com UA vinculada, e exclusão
+      bem-sucedida numa UA folha (confirmado que some da busca depois).
+- [x] **3. Edição de geometria fora do wizard** — resolvida pelo mesmo
+      `EditarImovelPanel.tsx` do item 1 (reaproveita `Step3Geo`, que já tem o desenho de
+      terreno/edificação) — não foi necessário nenhum componente novo.
+- [x] **4. Filtros rápidos na busca** — chips de status (Regular/Em fiscalização/Para
+      revisão) em `Sidebar/Busca.tsx`, combináveis com o texto já digitado (backend já
+      aceitava `st` em `GET /api/imoveis`, só não estava exposto na UI). Testado no
+      browser: filtro "Regular" sozinho retorna a lista certa.
+- [x] **5. Geocodificação por endereço (Nominatim)** — quando a busca de imóvel não
+      encontra nada, aparece um botão "🌍 Buscar '...' como endereço no mapa" que consulta
+      `nominatim.openstreetmap.org` (gratuito, sem chave) com o termo + nome/UF do
+      município (do `useMunicipioStore`) e centraliza o mapa (`flyTo`) no primeiro
+      resultado. Testado no browser com "Praça Tiradentes" → voou corretamente e mostrou
+      o endereço completo retornado pelo Nominatim.
+- [x] **7. GeoNetwork/WMS externo** — avaliado e decidido que uma integração de catálogo
+      GeoNetwork completa não faz sentido para o MVP real sem credenciais/servidor do
+      município (fora do que o usuário forneceu). Implementada em vez disso uma forma
+      genérica de **adicionar qualquer camada WMS por URL** (`Sidebar/Ferramentas.tsx` →
+      "🌐 Adicionar camada WMS", operador informa URL do serviço + nome técnico da layer +
+      rótulo de exibição), renderizada via `WMSTileLayer` do react-leaflet e listada no
+      `LayersControl` do mapa como qualquer outra camada. Testado no browser com o WMS
+      público do IBGE — camada some/aparece na lista, sem erros.
+- [ ] **6. Topologia (snap entre polígonos vizinhos ao desenhar)** — **decisão: fora do
+      escopo por ora**, não implementado. Motivo: não há plugin de snap instalado
+      (`leaflet-draw` não tem isso nativamente); implementar do zero exigiria detecção de
+      proximidade de vértices contra todas as parcelas vizinhas carregadas no viewport a
+      cada movimento do mouse durante o desenho — complexidade e risco de regressão de
+      performance desproporcionais ao valor para o MVP. Revisar com o usuário se isso vira
+      prioridade real (ex.: se erros de sobreposição de polígono aparecerem na prática).
 
 ---
 
@@ -325,3 +373,26 @@ com backend/DB reais.
 - **As 4 fases do backlog combinado com o usuário estão concluídas.** Próximo passo
   combinado: `git init` + commit (repositório ainda não existe). Prompt 9 (deploy) continua
   não iniciado, aguardando autorização explícita.
+- `git init` na raiz de `GeoMaple/` (não em `frontend/`) + primeiro commit `c0e68e6`
+  (121 arquivos), `.gitignore` excluindo `SGCIM_v10.html`/`PROMPT_GEOMAPLE_MVP.md`/
+  `Protótipo/`/`files.zip` (material confidencial, nunca versionar).
+
+### 2026-07-23 — Backlog residual (6 de 7 itens concluídos)
+- Trabalho feito em worktree isolado (`worktree-frolicking-crunching-koala`), a pedido
+  explícito do usuário ("Continue com o backlog residual") após o commit inicial.
+- Itens 1 e 3 (edição de imóvel + edição de geometria fora do wizard) resolvidos juntos por
+  `EditarImovelPanel.tsx`, um painel novo que reaproveita `Step2Localizacao`/`Step3Geo`/
+  `Step4Cadastrais` do wizard fora do fluxo de 5 etapas — evitou retrofit do wizard
+  create-only para um modo dual create/edit, que seria bem mais custoso.
+- Item 2 (botão de exclusão): a rota de backend já existia com soft-delete e bloqueio 409
+  quando há UA vinculada — só faltava o botão. Testados os dois caminhos no browser
+  (bloqueio 409 e exclusão bem-sucedida).
+- Itens 4 (filtros de status) e 5 (geocodificação Nominatim) na `Sidebar/Busca.tsx`; item 7
+  (camada WMS genérica por URL) em `Sidebar/Ferramentas.tsx` + `MapView` — todos testados no
+  browser com dados/serviços reais (Nominatim público, WMS público do IBGE).
+- Item 6 (snap de topologia) avaliado e **deixado fora do escopo por ora** — motivo e
+  critério de revisão documentados na seção 4. Não implementado.
+- `tsc -b`, `oxlint` e `npm run build` limpos após cada mudança. Todas as funcionalidades
+  testadas ao vivo no browser (não só verificação estática).
+- Mudanças commitadas no worktree isolado — **ainda não mescladas em `master`**, requer
+  ação do usuário (ou pedido explícito) para o merge.
