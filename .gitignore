@@ -27,3 +27,6 @@ npm-debug.log*
 .idea
 .DS_Store
 Thumbs.db
+
+# Worktrees de sessões em background do Claude Code — infraestrutura local, não versionar
+/.claude/worktrees/
