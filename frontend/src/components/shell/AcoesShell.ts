@@ -12,6 +12,7 @@ export type AcoesShell = {
   onVerTodos: () => void
   onAdicionarWms: () => void
   onAbrirCatalogoGeoNetwork: () => void
+  onConverterImportados: () => void
   onImprimirMapa: () => void
   onSobre: () => void
   onIndisponivel: (mensagem: string) => void

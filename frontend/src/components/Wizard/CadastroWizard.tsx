@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../../api/client'
-import type { ImovelGeometria, ImovelRegistro } from '../../types/imovel'
+import type { ImovelGeometria, ImovelRegistro, PolygonGeoJSON } from '../../types/imovel'
 import { loteCompleto, lotePrefixo, montarInscricao } from '../../utils/inscricao'
 import { FORM_INICIAL, type ImovelHerdado, type WizardFormData } from './types'
 import { StepIndicator } from './StepIndicator'
@@ -14,6 +14,7 @@ type Props = {
   aberto: boolean
   onClose: () => void
   onSalvo: () => void
+  geomInicial?: PolygonGeoJSON | null
 }
 
 function extrairErroApi(err: unknown, fallback: string) {
@@ -49,7 +50,7 @@ function montarPayload(form: WizardFormData) {
   }
 }
 
-export function CadastroWizard({ aberto, onClose, onSalvo }: Props) {
+export function CadastroWizard({ aberto, onClose, onSalvo, geomInicial }: Props) {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<WizardFormData>(FORM_INICIAL)
   const [herdado, setHerdado] = useState<ImovelHerdado | null>(null)
@@ -58,10 +59,13 @@ export function CadastroWizard({ aberto, onClose, onSalvo }: Props) {
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
+  const geomInicialRef = useRef(geomInicial)
+  geomInicialRef.current = geomInicial
+
   useEffect(() => {
     if (aberto) {
       setStep(1)
-      setForm(FORM_INICIAL)
+      setForm({ ...FORM_INICIAL, geom: geomInicialRef.current ?? null })
       setHerdado(null)
       setDuplicado(null)
       setErro(null)

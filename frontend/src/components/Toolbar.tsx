@@ -40,7 +40,7 @@ export function Toolbar(acoes: AcoesShell) {
     [
       { icone: '⬡', dica: 'Ajuste topológico', onClick: indisponivel('Ainda não implementado (Fase B)'), destaque: 'bg-ua/20 border-ua' },
       { icone: '🗂️', dica: 'Quadras Georreferenciadas', onClick: acoes.onQuadras, destaque: 'bg-ambar/20 border-ambar' },
-      { icone: '🔄', dica: 'Converter feições KML em Cadastros', onClick: indisponivel('Ainda não implementado (Fase D)'), destaque: 'bg-verde/20 border-verde' },
+      { icone: '🔄', dica: 'Converter feições KML em Cadastros', onClick: acoes.onConverterImportados, destaque: 'bg-verde/20 border-verde' },
     ],
   ]
 

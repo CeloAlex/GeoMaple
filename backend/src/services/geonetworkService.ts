@@ -2,7 +2,9 @@ import { AppError } from '../utils/errors'
 
 export type CamadaCatalogo = { name: string; title: string; abstract: string }
 
-const LIMITE_CAMADAS = 200
+// 500 é generoso o bastante para o GeoServer real testado (webgis.ouropreto.mg.gov.br,
+// 438 camadas) sem truncar catálogos municipais de porte médio/grande.
+const LIMITE_CAMADAS = 500
 const TIMEOUT_MS = 25000
 
 // Consulta o GetCapabilities de um servidor WMS/GeoServer (base de qualquer catálogo
@@ -51,23 +53,31 @@ export async function consultarCapacidadesWms(urlBase: string): Promise<{ layers
   }
 
   // Só considera o bloco <Capability> em diante — o <Service> (antes disso) também tem
-  // Name/Title, mas descreve o serviço como um todo, não uma camada individual.
+  // Name/Title, mas descreve o serviço como um todo, não uma camada individual. Remove
+  // também os blocos <Style> — cada Layer costuma ter um <Style><Name>...</Name>
+  // <Title>...</Title></Style> aninhado (ex.: "raster"/"generic"), que bate no mesmo
+  // padrão Name→Title e seria confundido com uma camada de verdade.
   const inicioCapability = texto.search(/<Capability[>\s]/i)
-  const textoCamadas = inicioCapability >= 0 ? texto.slice(inicioCapability) : texto
+  const textoCamadas = (inicioCapability >= 0 ? texto.slice(inicioCapability) : texto).replace(
+    /<Style>[\s\S]*?<\/Style>/g,
+    '',
+  )
 
   const regex = /<Name>([^<]+)<\/Name>\s*<Title>([^<]*)<\/Title>(?:\s*<Abstract>([^<]*)<\/Abstract>)?/g
-  const layers: CamadaCatalogo[] = []
+  const porNome = new Map<string, CamadaCatalogo>()
   let match: RegExpExecArray | null
-  while ((match = regex.exec(textoCamadas)) !== null && layers.length < LIMITE_CAMADAS) {
+  while ((match = regex.exec(textoCamadas)) !== null && porNome.size < LIMITE_CAMADAS) {
     const [, name, title, abstract] = match
-    layers.push({
-      name: decodificarEntidades(name.trim()),
+    const nomeLimpo = decodificarEntidades(name.trim())
+    if (porNome.has(nomeLimpo)) continue
+    porNome.set(nomeLimpo, {
+      name: nomeLimpo,
       title: decodificarEntidades((title || name).trim()),
       abstract: decodificarEntidades((abstract || '').trim()),
     })
   }
 
-  return { layers }
+  return { layers: [...porNome.values()] }
 }
 
 function decodificarEntidades(s: string): string {
