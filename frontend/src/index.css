@@ -19,3 +19,9 @@ body,
 body {
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* Afasta os controles nativos do Leaflet (escala, atribuição) da barra de status fixa
+   no rodapé do mapa (Map/StatusBar.tsx), que ocupa a faixa inferior do container. */
+.leaflet-bottom {
+  bottom: 26px;
+}
