@@ -11,6 +11,7 @@ export type AcoesShell = {
   onExportarGeoJsonSelecionado: () => void
   onVerTodos: () => void
   onAdicionarWms: () => void
+  onAbrirCatalogoGeoNetwork: () => void
   onImprimirMapa: () => void
   onSobre: () => void
   onIndisponivel: (mensagem: string) => void
