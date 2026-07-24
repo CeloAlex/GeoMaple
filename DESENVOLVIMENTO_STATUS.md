@@ -54,7 +54,7 @@ Referências do projeto: `INICIO_DESENVOLVIMENTO.md` (sequência de prompts orig
 | 7c | Trilha de auditoria completa | ✅ **concluída em 2026-07-23** |
 | 8 | Integração SINTER (CONFIDENCIAL) | ✅ backend + UI (modal de transmissão) |
 | 9 | Deploy Railway | ⛔ **não iniciado — aguardando ordem explícita do usuário** |
-| 10 | Paridade total de layout/UX com o protótipo (auditoria de 2026-07-23) | 🟡 **em andamento — ver seção 4a** |
+| 10 | Paridade total de layout/UX com o protótipo (auditoria de 2026-07-23) | ✅ **Fases A-D concluídas (2026-07-24) — ver seção 4a; Fase B2 opcional pendente** |
 
 ---
 
@@ -372,10 +372,38 @@ mesmo padrão gradativo das Fases 1-4 anteriores:
   para 25s. Também corrigido: a extração pegava o bloco `<Service>` (nome do serviço em si)
   como se fosse uma camada — restrito para procurar só a partir de `<Capability>`.
 
-### Fase D — Conversão de arquivos importados em cadastros reais
-- [ ] Wizard de conversão KML/KMZ/GeoJSON → registro de Imóvel/Provisório real (mapeamento de
-      campos do arquivo para os campos do cadastro, validação, tela de resultado) — hoje a
-      importação só cria uma camada de referência visual, não vira registro no banco.
+### Fase D — Conversão de arquivos importados em cadastros reais — ✅ CONCLUÍDA (2026-07-24)
+- [x] `ConversaoImportadosPanel.tsx` (ícone 🔄 na toolbar): lista todas as feições
+      poligonais de todas as camadas KML/GeoJSON já importadas (área calculada com
+      `L.GeometryUtil.geodesicArea`), com duas ações por feição:
+      - **→ Provisório**: formulário rápido inline (nome pré-preenchido a partir da
+        propriedade `nome`/`name` da feição, se houver; tipo/status/obs) que salva direto
+        via `POST /api/provisorios` com a geometria da feição — não precisa do
+        `CadastroWizard`, já que Provisório tem poucos campos obrigatórios.
+      - **→ Definitivo**: abre o `CadastroWizard` normal com a geometria pré-carregada
+        (`geomInicial` novo prop, populando `form.geom` antes do passo 1) — o operador só
+        precisa preencher inscrição/proprietário/dados cadastrais; a etapa de
+        georreferenciamento já chega pronta. Reaproveita 100% do wizard existente em vez de
+        duplicar a lógica de criação de Imóvel.
+- **Testado no browser de ponta a ponta com um GeoJSON de teste de 2 polígonos**: import →
+  conversão → Provisório real criado e confirmado na listagem real do painel de
+  Provisórios; conversão → Definitivo com geometria pré-carregada corretamente (área
+  idêntica à da feição importada) → wizard completado → Imóvel real criado e confirmado via
+  busca. Dados de teste excluídos ao final.
+- **Varredura de regressão em toda a Fase A-D**: os 7 menus da `MenuBar` (SGCIM, Arquivo,
+  Editar, Exibir, Ferramentas, GeoNetwork, Ajuda) verificados individualmente — todos abrem
+  e têm os itens esperados, sem erros de console.
+
+**Achado da sessão, fora do escopo original da Fase D:** ao testar o catálogo GeoNetwork
+(Fase C) contra `webgis.ouropreto.mg.gov.br/geoserver/wms` (ver seção 4a — descoberta feita
+a pedido do usuário, avaliando alternativas ao Google Earth), o próprio catálogo expôs um
+bug real: a extração por regex também capturava o bloco `<Style>` aninhado de cada camada
+(`<Style><Name>raster</Name><Title>Opaque Raster</Title></Style>`) como se fosse uma camada
+própria, causando entradas duplicadas/erradas na lista (e um aviso de "chave duplicada" no
+console do React). Corrigido em `geonetworkService.ts`: os blocos `<Style>` são removidos
+do texto antes da extração, e as camadas são deduplicadas por nome técnico. Limite de
+camadas (`LIMITE_CAMADAS`) também aumentado de 200 para 500 — o GeoServer real de Ouro
+Preto tem 438 camadas, e 200 truncava o catálogo pela metade.
 
 ### Fora de escopo por ora (funcionalidades mockadas no próprio protótipo)
 Dois itens do protótipo são **mockados com dados fictícios fixos** (arrays estáticos no
@@ -385,6 +413,46 @@ existente. Não entram nas fases acima; avaliar com o usuário como um projeto �
 houver interesse real:
 - Importação de planilha em massa (XLSX/CSV, milhares de registros, LGPD/CPF criptografado)
 - Relatórios de "Duplicidades Cadastrais" e "Consistência por Quadra" (% de cobertura)
+
+---
+
+## 4b. Mitigação de "Map data not yet available" — Google Earth vs. alternativa municipal (2026-07-24)
+
+O usuário perguntou se dava para resolver os gaps de cobertura do Esri World Imagery
+gratuito (mensagem "Map data not yet available" em zoom alto) trocando para uma "conta do
+Google Earth padrão", citando que o QGIS "tem acesso a todas as imagens do Google Earth".
+Pesquisa feita para orientar a decisão antes de qualquer mudança de código:
+
+**O que o QGIS realmente faz não é uma integração oficial.** A prática comum (plugin
+QuickMapServices ou conexão XYZ manual tipo `mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}`)
+acessa os servidores de tile internos do Google Maps diretamente, fora da API oficial —
+isso viola explicitamente os Termos de Serviço do Google Maps Platform (que proíbem uso de
+conteúdo fora da API oficial). Funciona hoje, mas é hotlinking não sancionado: risco de
+bloqueio de IP/chave, e inadequado para um sistema institucional/municipal como este.
+
+**A forma legítima existe, mas tem custo:** o plugin `leaflet.gridlayer.googlemutant`
+carrega a API JavaScript oficial do Google Maps por baixo dos panos (mantém conformidade
+com os termos). Exige conta Google Cloud com billing habilitado + chave de API do Maps
+JavaScript API restrita por domínio — custo estimado já levantado nesta sessão (seção
+sobre pricing do Google Maps Platform): ~$7/1000 carregamentos, cota gratuita de
+10.000/mês, provavelmente $0/mês no volume de uso deste projeto.
+
+**Achado principal — não é preciso nem uma coisa nem outra:** Ouro Preto **já publica seu
+próprio GeoServer público e gratuito** em `webgis.ouropreto.mg.gov.br/geoserver`, sem
+restrição de acesso, com 438 camadas (confirmado consultando o catálogo GeoNetwork da Fase
+C contra esse servidor). Entre elas, **26 camadas de "Aerolevantamento - Orthofoto"** —
+fotos aéreas reais e de alta resolução do próprio município, uma por distrito/bairro,
+incluindo `Aerolevantamento - Orthofoto de Ouro Preto` (cobre o centro histórico). Testada
+visualmente no mapa: resolução nitidamente superior à do Esri World Imagery gratuito na
+mesma área (nível de detalhe de telhado individual vs. borrão). Zero custo, zero risco de
+TOS, dado oficial do próprio município.
+
+**Recomendação:** usar o catálogo GeoNetwork (Fase C) para adicionar as camadas de
+Aerolevantamento relevantes como camada de referência — já funciona hoje, sem nenhuma
+mudança de código adicional. Não perseguir a integração paga com Google Maps Platform a
+menos que apareça uma necessidade concreta que o orthofoto municipal não cubra (ex.: área
+fora da cobertura do aerolevantamento, ou necessidade de imagem mais recente que a data do
+voo). Não usar hotlink não-oficial do Google em hipótese nenhuma.
 
 ---
 
@@ -606,3 +674,30 @@ com backend/DB reais.
 - `tsc`/build limpos tanto no backend quanto no frontend.
 - Próximo passo: Fase D (conversão de arquivos importados — KML/GeoJSON — em cadastros
   reais, com wizard de mapeamento de campos).
+
+### 2026-07-24 — Fase D: conversão de importados + pesquisa Google Earth/QGIS
+- Antes de codar, o usuário pediu uma investigação sobre trocar o provedor de imagem de
+  satélite por uma "conta do Google Earth", inspirado no QGIS. Pesquisa (seção 4b) mostrou
+  que o QGIS usa hotlink não-oficial dos tiles do Google (viola TOS), que a forma legítima
+  exige Google Cloud + billing + `leaflet.gridlayer.googlemutant`, e — o achado que decidiu
+  a questão — que **Ouro Preto já tem seu próprio GeoServer público e gratuito** com 26
+  camadas de aerolevantamento (fotos aéreas reais, resolução bem superior ao Esri
+  gratuito), descoberto testando o próprio catálogo GeoNetwork da Fase C contra
+  `webgis.ouropreto.mg.gov.br/geoserver/wms`. Recomendação: usar essa camada via GeoNetwork
+  (já funciona, zero mudança de código), não perseguir Google Maps Platform.
+- Esse teste também revelou um bug real no catálogo GeoNetwork (Fase C): a extração por
+  regex capturava o bloco `<Style>` aninhado de cada camada como se fosse uma camada
+  própria (causava entradas duplicadas tipo "raster"/"generic" e um aviso de chave
+  duplicada no React). Corrigido, e o limite de camadas subiu de 200 para 500 (o GeoServer
+  real de Ouro Preto tem 438 camadas — 200 truncava o catálogo).
+- Fase D implementada: `ConversaoImportadosPanel.tsx` (ícone 🔄), conversão de feição
+  importada em Provisório (direto) ou Definitivo (abre o `CadastroWizard` com a geometria
+  pré-carregada via novo prop `geomInicial`). Testado de ponta a ponta com um GeoJSON de
+  teste — os dois caminhos de conversão criaram registros reais confirmados via busca/
+  listagem, dados de teste removidos ao final.
+- Varredura de regressão nos 7 menus da barra superior (todos abrem, itens corretos, sem
+  erros de console) cobrindo as Fases A-D.
+- **Prompt 10 (paridade total com o protótipo) está com as 4 fases principais concluídas.**
+  Itens explicitamente adiados (documentados com motivo): snap topológico e croqui sobre
+  satélite real (Fase B2), importação em massa e relatórios de duplicidade (fora de escopo
+  — mockados no próprio protótipo).

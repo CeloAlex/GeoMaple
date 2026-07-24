@@ -11,11 +11,12 @@ import { MinhaAtividade } from './Auditoria/MinhaAtividade'
 import { MenuBar } from './MenuBar'
 import { Toolbar } from './Toolbar'
 import { GeoNetworkCatalogo } from './GeoNetworkCatalogo'
+import { ConversaoImportadosPanel } from './ConversaoImportadosPanel'
 import { api } from '../api/client'
 import { centroidePoligono } from '../utils/geo'
 import { exportarImovelGeoJSON, exportarImovelKML } from '../utils/exportarImovel'
 import { useMunicipioStore } from '../store/municipioStore'
-import type { ImovelFeature, ImovelFeatureCollection, ImovelGeometria, ImovelRegistro } from '../types/imovel'
+import type { ImovelFeature, ImovelFeatureCollection, ImovelGeometria, ImovelRegistro, PolygonGeoJSON } from '../types/imovel'
 import type { CamadaImportada } from '../utils/importarGeo'
 
 const SEM_IMOVEIS: ImovelFeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -36,6 +37,8 @@ export function MainLayout() {
   const [fitTodosEm, setFitTodosEm] = useState(0)
   const [wmsFormEm, setWmsFormEm] = useState(0)
   const [catalogoAberto, setCatalogoAberto] = useState(false)
+  const [conversaoAberta, setConversaoAberta] = useState(false)
+  const [geomParaConversao, setGeomParaConversao] = useState<PolygonGeoJSON | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [imoveisVisiveis, setImoveisVisiveis] = useState<ImovelFeatureCollection>(SEM_IMOVEIS)
   const [camadasImportadas, setCamadasImportadas] = useState<CamadaImportada[]>([])
@@ -98,12 +101,22 @@ export function MainLayout() {
     exportarImovelGeoJSON(selecionado)
   }
 
+  function abrirWizardNovo() {
+    setGeomParaConversao(null)
+    setWizardAberto(true)
+  }
+
+  function converterParaDefinitivo(geom: PolygonGeoJSON) {
+    setGeomParaConversao(geom)
+    setWizardAberto(true)
+  }
+
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
       if (!(e.ctrlKey || e.metaKey)) return
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault()
-        setWizardAberto(true)
+        abrirWizardNovo()
       } else if (e.key === 'd' || e.key === 'D') {
         e.preventDefault()
         setProvisoriosAberto(true)
@@ -118,7 +131,7 @@ export function MainLayout() {
 
   const acoesShell = {
     onToggleSidebar: () => setSidebarColapsada((c) => !c),
-    onNovoCadastro: () => setWizardAberto(true),
+    onNovoCadastro: abrirWizardNovo,
     onNovaProvisoria: () => setProvisoriosAberto(true),
     onQuadras: () => setQuadrasAberto(true),
     onOperadores: () => setOperadoresAberto(true),
@@ -130,6 +143,7 @@ export function MainLayout() {
       setWmsFormEm((n) => n + 1)
     },
     onAbrirCatalogoGeoNetwork: () => setCatalogoAberto(true),
+    onConverterImportados: () => setConversaoAberta(true),
     onImprimirMapa: () => window.print(),
     onSobre: () => setSobreAberto(true),
     onIndisponivel: mostrarAviso,
@@ -193,8 +207,12 @@ export function MainLayout() {
       </div>
       <CadastroWizard
         aberto={wizardAberto}
-        onClose={() => setWizardAberto(false)}
+        onClose={() => {
+          setWizardAberto(false)
+          setGeomParaConversao(null)
+        }}
         onSalvo={() => setRecarregarEm((n) => n + 1)}
+        geomInicial={geomParaConversao}
       />
       {quadrasAberto && (
         <QuadrasPanel onClose={() => setQuadrasAberto(false)} onAlterado={() => setRecarregarEm((n) => n + 1)} />
@@ -211,6 +229,17 @@ export function MainLayout() {
           camadasWms={camadasWms}
           onAdicionarWms={(camada) => setCamadasWms((cs) => [...cs, camada])}
           onRemoverWms={(id) => setCamadasWms((cs) => cs.filter((c) => c.id !== id))}
+        />
+      )}
+      {conversaoAberta && (
+        <ConversaoImportadosPanel
+          onClose={() => setConversaoAberta(false)}
+          camadasImportadas={camadasImportadas}
+          onConvertidoProvisorio={() => {
+            setConversaoAberta(false)
+            setRecarregarEm((n) => n + 1)
+          }}
+          onConverterParaDefinitivo={converterParaDefinitivo}
         />
       )}
       {sobreAberto && (
