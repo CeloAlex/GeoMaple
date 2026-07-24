@@ -345,14 +345,32 @@ mesmo padrão gradativo das Fases 1-4 anteriores:
       carregado) — engenharia real, não só configuração, então ficou para a próxima
       iteração em vez de arriscar uma versão malfeita agora.
 
-### Fase C — Catálogo GeoNetwork completo
-- [ ] Busca `getCapabilities` num servidor WMS/GeoNetwork informado pelo operador, listando
-      as camadas disponíveis para escolha (hoje só dá pra adicionar 1 camada manualmente
-      informando URL + nome técnico da layer — essa versão simples continua útil como
-      fallback quando o servidor não suporta `getCapabilities` ou o operador já sabe o nome
-      da layer).
-- [ ] Lista pesquisável/filtrável de camadas do catálogo, com toggle individual e persistência
-      da seleção durante a sessão.
+### Fase C — Catálogo GeoNetwork completo — ✅ CONCLUÍDA (2026-07-23)
+- [x] Consulta ao `GetCapabilities` de um servidor WMS/GeoServer informado pelo operador.
+      **Rodando no backend** (`backend/src/services/geonetworkService.ts`, rota
+      `GET /api/geonetwork/capabilities?url=`), não no navegador — evita bloqueio de CORS ao
+      consultar servidores de terceiros (o navegador não deixaria o frontend chamar
+      diretamente um domínio arbitrário sem cabeçalhos CORS liberados pelo servidor).
+      Extração das camadas por regex sequencial Name→Title→Abstract a partir do bloco
+      `<Capability>` (mesmo espírito da análise de KML já usada no frontend — evita
+      dependência nova de parser XML completo). Timeout de 25s (servidores WMS reais podem
+      levar mais de 10-15s para responder um GetCapabilities grande).
+- [x] `GeoNetworkCatalogo.tsx`: painel com campo de URL, lista de camadas com nome técnico e
+      resumo, filtro por texto, toggle individual "+ Adicionar"/"✓ Remover" (compara URL+nome
+      técnico com as camadas WMS já ativas) — reaproveita o mesmo estado `camadasWms` já
+      usado pela adição manual (Fase A/backlog residual) e pelo `MapView`. Aberto pelo
+      ícone 🌐 da toolbar e pelo menu GeoNetwork → "Abrir catálogo GeoNetwork" (a toolbar
+      antes abria o formulário manual — corrigido para abrir o catálogo, mais fiel ao
+      protótipo; o formulário manual continua acessível pelo menu "Adicionar WMS
+      manualmente", como fallback para servidores sem `GetCapabilities`).
+- **Testado no browser com um GeoServer público real** (`ahocevar.com/geoserver/wms`):
+  consulta trouxe 24 camadas reais, filtro por texto funcionando, adicionar/remover uma
+  camada testado — **a camada realmente renderizou no mapa** (trocou visivelmente o fundo
+  para o basemap Natural Earth consultado), confirmando a integração de ponta a ponta, não
+  só a listagem. Durante o teste, a consulta a um GeoServer do IBGE (~6 MB de resposta)
+  expôs que o timeout inicial de 8s era curto demais para respostas grandes/lentas — ajustado
+  para 25s. Também corrigido: a extração pegava o bloco `<Service>` (nome do serviço em si)
+  como se fosse uma camada — restrito para procurar só a partir de `<Capability>`.
 
 ### Fase D — Conversão de arquivos importados em cadastros reais
 - [ ] Wizard de conversão KML/KMZ/GeoJSON → registro de Imóvel/Provisório real (mapeamento de
@@ -569,3 +587,22 @@ com backend/DB reais.
   composição de tiles num canvas fora do contexto do mapa) do que cabia razoavelmente nesta
   etapa junto com os outros 3 itens. Motivo detalhado na seção 4a.
 - `tsc -b`, `oxlint` e `npm run build` limpos.
+
+### 2026-07-23 — Fase C: catálogo GeoNetwork completo
+- Primeira mudança de **backend** desde o início do backlog de paridade (Fases A/B eram só
+  frontend): rota nova `GET /api/geonetwork/capabilities?url=` (`routes/geonetwork.ts` +
+  `services/geonetworkService.ts`) para consultar `GetCapabilities` de um servidor WMS
+  informado pelo operador — roda no servidor para não esbarrar em bloqueio de CORS do
+  navegador ao chamar domínios de terceiros.
+- `GeoNetworkCatalogo.tsx` no frontend: busca, filtra e adiciona/remove camadas do catálogo
+  usando o mesmo estado `camadasWms` das Fases anteriores. Corrigido o ícone 🌐 da toolbar
+  (antes abria o formulário manual de WMS — agora abre o catálogo, mais fiel ao protótipo).
+- **Testado com um GeoServer público real de ponta a ponta**: 24 camadas listadas, filtro
+  funcionando, camada adicionada realmente renderizou no mapa (mudou o basemap visível).
+  Dois ajustes feitos durante o teste: timeout do backend aumentado de 8s para 25s (uma
+  consulta real a um GeoServer do IBGE expôs que respostas de alguns servidores WMS reais
+  são grandes/lentas) e correção da extração por regex para não capturar o bloco
+  `<Service>` como se fosse uma camada.
+- `tsc`/build limpos tanto no backend quanto no frontend.
+- Próximo passo: Fase D (conversão de arquivos importados — KML/GeoJSON — em cadastros
+  reais, com wizard de mapeamento de campos).

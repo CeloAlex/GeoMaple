@@ -69,7 +69,7 @@ export function MenuBar(acoes: AcoesShell) {
     {
       label: 'GeoNetwork',
       itens: [
-        { label: 'Abrir catálogo GeoNetwork', onClick: indisponivel('Catálogo completo ainda não implementado (Fase C)') },
+        { label: 'Abrir catálogo GeoNetwork', onClick: acoes.onAbrirCatalogoGeoNetwork },
         { label: 'Adicionar WMS manualmente', onClick: acoes.onAdicionarWms },
       ],
     },

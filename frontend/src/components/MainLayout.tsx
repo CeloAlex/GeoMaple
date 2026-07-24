@@ -10,6 +10,7 @@ import { AuditoriaPanel } from './Auditoria/AuditoriaPanel'
 import { MinhaAtividade } from './Auditoria/MinhaAtividade'
 import { MenuBar } from './MenuBar'
 import { Toolbar } from './Toolbar'
+import { GeoNetworkCatalogo } from './GeoNetworkCatalogo'
 import { api } from '../api/client'
 import { centroidePoligono } from '../utils/geo'
 import { exportarImovelGeoJSON, exportarImovelKML } from '../utils/exportarImovel'
@@ -34,6 +35,7 @@ export function MainLayout() {
   const [voarPara, setVoarPara] = useState<Destino | null>(null)
   const [fitTodosEm, setFitTodosEm] = useState(0)
   const [wmsFormEm, setWmsFormEm] = useState(0)
+  const [catalogoAberto, setCatalogoAberto] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   const [imoveisVisiveis, setImoveisVisiveis] = useState<ImovelFeatureCollection>(SEM_IMOVEIS)
   const [camadasImportadas, setCamadasImportadas] = useState<CamadaImportada[]>([])
@@ -127,6 +129,7 @@ export function MainLayout() {
       setSidebarColapsada(false)
       setWmsFormEm((n) => n + 1)
     },
+    onAbrirCatalogoGeoNetwork: () => setCatalogoAberto(true),
     onImprimirMapa: () => window.print(),
     onSobre: () => setSobreAberto(true),
     onIndisponivel: mostrarAviso,
@@ -202,6 +205,14 @@ export function MainLayout() {
       {operadoresAberto && <OperadoresPanel onClose={() => setOperadoresAberto(false)} />}
       {auditoriaAberto && <AuditoriaPanel onClose={() => setAuditoriaAberto(false)} />}
       {minhaAtividadeAberto && <MinhaAtividade onClose={() => setMinhaAtividadeAberto(false)} />}
+      {catalogoAberto && (
+        <GeoNetworkCatalogo
+          onClose={() => setCatalogoAberto(false)}
+          camadasWms={camadasWms}
+          onAdicionarWms={(camada) => setCamadasWms((cs) => [...cs, camada])}
+          onRemoverWms={(id) => setCamadasWms((cs) => cs.filter((c) => c.id !== id))}
+        />
+      )}
       {sobreAberto && (
         <div className="fixed inset-0 z-2000 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl">

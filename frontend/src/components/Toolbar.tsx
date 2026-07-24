@@ -33,7 +33,7 @@ export function Toolbar(acoes: AcoesShell) {
     ],
     [
       { icone: '📊', dica: 'Importar planilha (40.000+)', onClick: indisponivel('Fora do escopo do MVP — ver DESENVOLVIMENTO_STATUS.md'), destaque: 'bg-verde/20 border-verde' },
-      { icone: '🌐', dica: 'GeoNetwork — Adicionar camada WMS', onClick: acoes.onAdicionarWms, destaque: 'bg-[#1a6a8a]/25 border-[#1a6a8a]' },
+      { icone: '🌐', dica: 'GeoNetwork — Catálogo de camadas', onClick: acoes.onAbrirCatalogoGeoNetwork, destaque: 'bg-[#1a6a8a]/25 border-[#1a6a8a]' },
       { icone: '⚠️', dica: 'Duplicidades cadastrais', onClick: indisponivel('Fora do escopo do MVP — dado mockado no protótipo original'), destaque: 'bg-red-500/15 border-red-500' },
       { icone: '👤', dica: 'Usuários e permissões', onClick: acoes.onOperadores, destaque: 'bg-[#1a6a8a]/25 border-[#1a6a8a]' },
     ],
