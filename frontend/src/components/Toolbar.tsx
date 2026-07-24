@@ -18,7 +18,7 @@ export function Toolbar(acoes: AcoesShell) {
     [
       { icone: '📐', dica: 'Régua: área', onClick: indisponivel('Use o botão de régua no mapa') },
       { icone: '📏', dica: 'Régua: distância', onClick: indisponivel('Use o botão de régua no mapa') },
-      { icone: '📍', dica: 'Ponto georreferenciado', onClick: indisponivel('Ainda não implementado (Fase B)') },
+      { icone: '📍', dica: 'Ponto georreferenciado', onClick: indisponivel('Use o botão 📍 no mapa (abaixo da régua)') },
       { icone: '📥', dica: 'Importar KML / KMZ / GeoJSON', onClick: indisponivel('Use "Importar KML/GeoJSON" na barra lateral') },
       { icone: '↩️', dica: 'Desfazer último vértice (Ctrl+Z)', onClick: indisponivel('Disponível durante o desenho de um polígono') },
     ],
@@ -28,7 +28,7 @@ export function Toolbar(acoes: AcoesShell) {
       { icone: '🧭', dica: 'Sistema de coordenadas', onClick: indisponivel('Clique no rótulo "Sistema" na barra inferior do mapa') },
     ],
     [
-      { icone: '🖨️', dica: 'Imprimir mapa', onClick: indisponivel('Impressão do mapa completo ainda não implementada (Fase B)') },
+      { icone: '🖨️', dica: 'Imprimir mapa', onClick: acoes.onImprimirMapa },
       { icone: '⬇️', dica: 'Exportar KML do imóvel selecionado', onClick: acoes.onExportarKmlSelecionado },
     ],
     [
@@ -45,7 +45,7 @@ export function Toolbar(acoes: AcoesShell) {
   ]
 
   return (
-    <div className="flex h-9 items-center gap-0.5 border-b border-white/10 bg-[#12253f] px-2">
+    <div className="flex h-9 items-center gap-0.5 border-b border-white/10 bg-[#12253f] px-2 print:hidden">
       {grupos.map((grupo, i) => (
         <div key={i} className="flex items-center gap-0.5">
           {i > 0 && <Separador />}

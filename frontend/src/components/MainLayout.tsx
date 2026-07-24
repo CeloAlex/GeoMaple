@@ -105,6 +105,9 @@ export function MainLayout() {
       } else if (e.key === 'd' || e.key === 'D') {
         e.preventDefault()
         setProvisoriosAberto(true)
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault()
+        window.print()
       }
     }
     window.addEventListener('keydown', aoTeclar)
@@ -124,6 +127,7 @@ export function MainLayout() {
       setSidebarColapsada(false)
       setWmsFormEm((n) => n + 1)
     },
+    onImprimirMapa: () => window.print(),
     onSobre: () => setSobreAberto(true),
     onIndisponivel: mostrarAviso,
   }
@@ -171,10 +175,17 @@ export function MainLayout() {
             onAlterado={() => setRecarregarEm((n) => n + 1)}
           />
           {aviso && (
-            <div className="absolute top-4 left-1/2 z-1001 -translate-x-1/2 rounded bg-navy px-4 py-2 text-sm text-white shadow-lg">
+            <div className="absolute top-4 left-1/2 z-1001 -translate-x-1/2 rounded bg-navy px-4 py-2 text-sm text-white shadow-lg print:hidden">
               {aviso}
             </div>
           )}
+          <div className="absolute top-2 left-1/2 z-1000 hidden -translate-x-1/2 rounded bg-white/90 px-4 py-1.5 text-center shadow print:block">
+            <p className="text-sm font-semibold text-navy">Mapa Cadastral — {municipio.nome}/{municipio.uf}</p>
+            <p className="text-[10px] text-gray-500">
+              Impresso em {new Date().toLocaleString('pt-BR')} · SIRGAS2000/WGS84 · Imóveis visíveis:{' '}
+              {imoveisVisiveis.features.length}
+            </p>
+          </div>
         </main>
       </div>
       <CadastroWizard

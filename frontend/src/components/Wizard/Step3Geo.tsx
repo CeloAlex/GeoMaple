@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { MapContainer, TileLayer, LayersControl } from 'react-leaflet'
 import { GeoDrawLayer, type GeoDrawHandle } from './GeoDrawLayer'
+import { ColarCoordenadas } from '../Map/ColarCoordenadas'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from '../Map/constants'
 import { useMunicipioStore } from '../../store/municipioStore'
 import type { WizardFormData } from './types'
@@ -48,6 +49,14 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
         >
           ✏️ Desenhar edificação (opcional)
         </button>
+        <ColarCoordenadas
+          rotulo="📋 Colar coordenadas do terreno"
+          onAplicar={(pontos) => geoRef.current?.criarDePontos('terreno', pontos)}
+        />
+        <ColarCoordenadas
+          rotulo="📋 Colar coordenadas da edificação"
+          onAplicar={(pontos) => geoRef.current?.criarDePontos('edificacao', pontos)}
+        />
       </div>
 
       <div className="h-80 w-full overflow-hidden rounded border border-gray-300">

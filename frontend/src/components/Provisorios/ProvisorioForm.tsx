@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { MapContainer, TileLayer, LayersControl } from 'react-leaflet'
 import { SinglePolygonDraw, type SinglePolygonHandle } from '../Map/SinglePolygonDraw'
+import { ColarCoordenadas } from '../Map/ColarCoordenadas'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from '../Map/constants'
 import { useMunicipioStore } from '../../store/municipioStore'
 import { TIPO_LABEL, STATUS_LABEL, type ProvisorioFormData } from './types'
@@ -105,14 +106,17 @@ export function ProvisorioForm({ titulo, inicial, onSalvar, onCancelar }: Props)
       </div>
 
       <div>
-        <button
-          type="button"
-          onClick={() => drawRef.current?.iniciarDesenho()}
-          className="mb-2 rounded px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-          style={{ backgroundColor: COR_PROVISORIO }}
-        >
-          ✏️ Desenhar delimitação
-        </button>
+        <div className="mb-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => drawRef.current?.iniciarDesenho()}
+            className="rounded px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+            style={{ backgroundColor: COR_PROVISORIO }}
+          >
+            ✏️ Desenhar delimitação
+          </button>
+          <ColarCoordenadas onAplicar={(pontos) => drawRef.current?.criarDePontos(pontos)} />
+        </div>
         <div className="h-64 w-full overflow-hidden rounded border border-gray-300">
           <MapContainer center={[centro.lat, centro.lng]} zoom={16} maxZoom={MAX_ZOOM} className="h-full w-full">
             <LayersControl position="topright">

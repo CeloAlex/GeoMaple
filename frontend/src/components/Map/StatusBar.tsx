@@ -20,7 +20,7 @@ export function StatusBar({ totalVisiveis, mensagem }: Props) {
   })
 
   return (
-    <div className="absolute right-0 bottom-0 left-0 z-700 flex items-center gap-2 bg-navy/95 px-3 py-1 text-[11px] text-white/80">
+    <div className="absolute right-0 bottom-0 left-0 z-700 flex items-center gap-2 bg-navy/95 px-3 py-1 text-[11px] text-white/80 print:hidden">
       <span>{cursor ? formatarCoordenada(sistema, cursor.lat, cursor.lng) : '—'}</span>
       <span className="text-white/30">|</span>
       <span>Zoom: {zoom}</span>

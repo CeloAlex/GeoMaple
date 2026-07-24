@@ -25,3 +25,18 @@ body {
 .leaflet-bottom {
   bottom: 26px;
 }
+
+/* Impressão do mapa (MenuBar/Toolbar "Imprimir mapa"): a página inteira já é o mapa em
+   tela cheia, então basta ocultar a "casca" do app (menu, toolbar, sidebar, etc. — via
+   utilitário print:hidden do Tailwind em cada componente) e configurar a página para A4
+   paisagem. O cabeçalho impresso (MainLayout, hidden print:block) só aparece aqui. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  .leaflet-control-zoom,
+  .leaflet-control-layers {
+    display: none !important;
+  }
+}

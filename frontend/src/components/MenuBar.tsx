@@ -37,7 +37,7 @@ export function MenuBar(acoes: AcoesShell) {
         { label: 'Abrir KML / KMZ / GeoJSON', onClick: indisponivel('Use "📥 Importar KML/GeoJSON" na barra lateral') },
         { label: 'Exportar KML', onClick: acoes.onExportarKmlSelecionado },
         { label: 'Exportar GeoJSON', onClick: acoes.onExportarGeoJsonSelecionado },
-        { label: 'Imprimir mapa', atalho: 'Ctrl+P', onClick: indisponivel('Impressão do mapa completo ainda não implementada (Fase B)') },
+        { label: 'Imprimir mapa', atalho: 'Ctrl+P', onClick: acoes.onImprimirMapa },
       ],
     },
     {
@@ -80,7 +80,7 @@ export function MenuBar(acoes: AcoesShell) {
   ]
 
   return (
-    <div ref={ref} className="flex h-8 items-center gap-0.5 border-b border-white/10 bg-navy px-2 text-[13px] text-white/85">
+    <div ref={ref} className="flex h-8 items-center gap-0.5 border-b border-white/10 bg-navy px-2 text-[13px] text-white/85 print:hidden">
       {menus.map((menu) => (
         <div key={menu.label} className="relative">
           <button

@@ -9,6 +9,7 @@ export type TipoDesenho = 'terreno' | 'edificacao'
 
 export type GeoDrawHandle = {
   iniciarDesenho: (tipo: TipoDesenho) => void
+  criarDePontos: (tipo: TipoDesenho, pontos: L.LatLngExpression[]) => void
 }
 
 const ESTILO: Record<TipoDesenho, L.PathOptions> = {
@@ -50,6 +51,19 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
         showArea: true,
         allowIntersection: false,
       }).enable()
+    },
+    criarDePontos(tipo, pontos) {
+      const atual = camadasRef.current[tipo]
+      if (atual) grupoRef.current.removeLayer(atual)
+      const layer = L.polygon(pontos, ESTILO[tipo]) as LayerComTipo
+      layer.sgcimTipo = tipo
+      grupoRef.current.addLayer(layer)
+      camadasRef.current[tipo] = layer
+      map.fitBounds(layer.getBounds(), { maxZoom: 19 })
+      const geom = layerParaPoligono(layer)
+      const area = calcularArea(layer)
+      if (tipo === 'terreno') callbacksRef.current.onTerrenoChange(geom, area)
+      else callbacksRef.current.onEdificacaoChange(geom, area)
     },
   }))
 
