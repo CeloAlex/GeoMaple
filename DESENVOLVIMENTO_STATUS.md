@@ -701,3 +701,26 @@ com backend/DB reais.
   Itens explicitamente adiados (documentados com motivo): snap topológico e croqui sobre
   satélite real (Fase B2), importação em massa e relatórios de duplicidade (fora de escopo
   — mockados no próprio protótipo).
+
+### 2026-07-24 — Estado no momento da pausa (para retomar sem perder contexto)
+Tudo que está descrito acima (Fases A-D do Prompt 10, achado do GeoServer de Ouro Preto,
+correção do bug `<Style>`) **já está commitado, mesclado em `master` e enviado ao GitHub**
+(`https://github.com/CeloAlex/GeoMaple.git`, commit `8750450` no momento desta nota) — nada
+disso depende desta conversa continuar para não se perder.
+
+**Ponto em aberto no momento desta nota:** o usuário está testando localmente o catálogo
+GeoNetwork contra `webgis.ouropreto.mg.gov.br/geoserver/wms` e reportou que o filtro
+mostrava "2 de 200" camadas (deveria ser algo perto de "216 de 216" após a correção do
+limite/dedup) e não encontrava a camada "Aerolevantamento - Orthofoto de Ouro Preto"
+específica. Diagnóstico provável: o backend local dele ainda estava rodando o processo
+antigo (código pré-correção) em memória, mesmo com os arquivos já corrigidos em disco —
+orientei reiniciar `npm run dev` do backend (e do frontend por segurança) e refazer a
+consulta filtrando por **"ortho"** (com H — nome técnico em inglês; "orto" sem H não bate).
+**Ainda aguardando a confirmação do usuário** se o restart resolveu. Se ele voltar
+reportando que ainda não encontrou a camada mesmo após reiniciar, os próximos passos de
+investigação seriam: (1) confirmar se a resposta do `GetCapabilities` realmente contém uma
+camada com "Ouro Preto" no título/nome nesta consulta específica (o conteúdo do GeoServer
+pode ter mudado desde o teste desta sessão), (2) checar se o filtro de texto está
+comparando corretamente title/name em minúsculas, (3) inspecionar a resposta bruta da rota
+`GET /api/geonetwork/capabilities?url=...` diretamente (ex. via curl/Postman) para isolar
+se o problema é na extração do backend ou na exibição do frontend.
