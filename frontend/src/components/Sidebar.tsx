@@ -30,6 +30,7 @@ type Props = {
   camadasWms: CamadaWms[]
   onAdicionarWms: (camada: CamadaWms) => void
   onRemoverWms: (id: string) => void
+  abrirFormularioWmsEm?: number
 }
 
 export function Sidebar({
@@ -49,6 +50,7 @@ export function Sidebar({
   camadasWms,
   onAdicionarWms,
   onRemoverWms,
+  abrirFormularioWmsEm,
 }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const logout = useAuthStore((s) => s.logout)
@@ -118,6 +120,7 @@ export function Sidebar({
             camadasWms={camadasWms}
             onAdicionarWms={onAdicionarWms}
             onRemoverWms={onRemoverWms}
+            abrirFormularioEm={abrirFormularioWmsEm}
           />
         </div>
 

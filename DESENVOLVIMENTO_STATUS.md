@@ -273,22 +273,39 @@ Ordem de execução decidida (2026-07-23) — implementar sem esperar revisão p
 usuário a cada fase, testando no browser e commitando ao final de cada uma, seguindo o
 mesmo padrão gradativo das Fases 1-4 anteriores:
 
-### Fase A — Shell visual da aplicação (maior gap de fidelidade de layout)
-- [ ] Barra de menu superior (Arquivo/Editar/Exibir/Ferramentas/GeoNetwork/Ajuda, estilo
-      dropdown) com os atalhos de teclado que o protótipo tem (Ctrl+N novo cadastro,
-      Ctrl+D duplicar/desenhar, Ctrl+P imprimir, etc. — mapear os reais do HTML).
-- [ ] Toolbar de ícones fixa (equivalente aos ~20 botões do protótipo: desenhar, medir,
-      alternar tiles, imprimir, exportar, atalho para usuários/quadras/conversão KML) —
-      pode reaproveitar ações que já existem na Sidebar, só precisa de uma segunda forma
-      de acesso mais parecida com o protótipo.
-- [ ] Barra de status inferior do mapa (coordenadas lat/lng do cursor, zoom atual, sistema
-      de coordenadas, contadores de imóveis/quadras visíveis).
-- [ ] Seta de norte + escala gráfica sobre o mapa (Leaflet tem plugins simples para isso,
-      ou dá para fazer com CSS/SVG puro sem dependência nova).
-- [ ] Legenda fixa no mapa (cores por tipo de registro: definitivo/provisório/quadra/UA —
-      já usamos essas cores, só falta a legenda visual).
-- [ ] Sidebar colapsável (`toggleSb` no protótipo) — confirmar se já existe algo parecido
-      antes de construir do zero.
+### Fase A — Shell visual da aplicação (maior gap de fidelidade de layout) — ✅ CONCLUÍDA (2026-07-23)
+- [x] Barra de menu superior (`MenuBar.tsx`): SGCIM/Arquivo/Editar/Exibir/Ferramentas/
+      GeoNetwork/Ajuda, dropdowns com os atalhos do protótipo exibidos (Ctrl+N/D/P/Z/Esc).
+      Itens ligados a ações reais quando existem (novo cadastro, nova provisória, exportar
+      KML/GeoJSON do imóvel selecionado, ver todos, adicionar WMS, operadores, sair, sobre);
+      itens que dependem de fases futuras (imprimir mapa, catálogo GeoNetwork completo,
+      duplicidades/consistência, ponto georreferenciado) mostram um aviso inline claro em
+      vez de fingir que funcionam ou ficar mudos.
+- [x] Toolbar de ícones fixa (`Toolbar.tsx`), mesmo padrão de ações reais vs. aviso do
+      MenuBar, incluindo o botão de colapsar a sidebar.
+- [x] Barra de status inferior do mapa (`Map/StatusBar.tsx`): coordenadas do cursor
+      (clicável para alternar Graus decimais/GMS/UTM via `utils/coords.ts`, com conversão
+      UTM própria — fórmula padrão Snyder, sem dependência nova), zoom atual, contagem de
+      imóveis visíveis.
+- [x] Seta de norte (`SetaNorte`, div fixo) + escala gráfica real via `<ScaleControl>`
+      nativo do react-leaflet (mais preciso que reimplementar). Precisou de um ajuste de
+      CSS (`.leaflet-bottom { bottom: 26px }` em `index.css`) para não colidir com a nova
+      barra de status fixa no rodapé do mapa.
+- [x] Legenda fixa no mapa (`Map/Legend.tsx`): Cadastro Definitivo, Delimitação Provisória,
+      Quadras georreferenciadas, Imóvel selecionado.
+- [x] Sidebar colapsável — estado `sidebarColapsada` em `MainLayout`, alternado pelo botão
+      "Painel lateral" da toolbar (a sidebar simplesmente não é montada quando colapsada).
+- [x] Atalhos de teclado reais: Ctrl+N (novo cadastro) e Ctrl+D (nova delimitação
+      provisória) via `keydown` global em `MainLayout`. Ctrl+Z/Esc não foram implementados
+      globalmente (são contextuais ao desenho ativo no leaflet-draw) — o menu mostra aviso
+      explicando isso em vez de fingir suporte.
+- **Testado no browser de ponta a ponta** (via disparo de clique JS por ser mais confiável
+  que clique sintético de coordenada neste ambiente — flakiness já documentada): dropdowns
+  do menu, aviso "indisponível" em itens de fases futuras, exportar KML sem seleção
+  (aviso correto), colapsar/expandir sidebar, gatilho externo do formulário WMS (toolbar E
+  menu abrindo o mesmo formulário que já existia em `Ferramentas.tsx`), "Ver todos", modal
+  "Sobre", atalho Ctrl+N abrindo o wizard.
+- `tsc -b`, `oxlint` e `npm run build` limpos.
 
 ### Fase B — Ferramentas de mapa avançadas
 - [ ] Painel "Ponto georreferenciado": captura de coordenada por clique no mapa com
@@ -479,3 +496,38 @@ com backend/DB reais.
   testadas ao vivo no browser (não só verificação estática).
 - Mudanças commitadas no worktree isolado — **ainda não mescladas em `master`**, requer
   ação do usuário (ou pedido explícito) para o merge.
+- Depois desta sessão, o usuário autorizou o merge + push: repositório remoto criado em
+  `https://github.com/CeloAlex/GeoMaple.git`, branch `master` local mesclada com o worktree
+  e enviada (`git push -u origin master`). Stash local pré-merge (versão antiga e superada
+  do backlog residual, editada diretamente na master antes do worktree existir) descartado
+  após confirmar que o conteúdo mesclado já era mais completo.
+
+### 2026-07-23 — Auditoria do protótipo + Prompt 10 (paridade total) + Fase A
+- Usuário pediu revisão completa do `SGCIM_v10.html` (sentia falta de "inúmeros menus e
+  actions") e avaliação de custo de API do Google Maps Platform, disposto a pagar por uma
+  conta dedicada se necessário. Dois sub-agentes em paralelo: um leu o protótipo por
+  completo e comparou com o código real; outro pesquisou preços atuais do Google Maps
+  Platform nas páginas oficiais.
+- **Achado decisivo:** nada no protótipo usa API paga do Google — tudo é `window.open()`
+  para Google Maps/Street View público e Nominatim gratuito, já replicado fielmente. Não há
+  necessidade de conta paga para atingir paridade com o protótipo (detalhes e tabela de
+  preços na seção 4a).
+- Backlog do "Prompt 10" documentado (seção 4a) em 4 fases (A: shell visual, B: ferramentas
+  de mapa avançadas, C: catálogo GeoNetwork completo, D: conversão de importação em
+  cadastro real), mais 2 itens explicitamente fora de escopo por serem mockados no próprio
+  protótipo (import em massa, relatórios de duplicidade).
+- Usuário autorizou implementação sem esperar revisão prévia a cada fase.
+- **Fase A implementada e testada** nesta mesma sessão: `MenuBar.tsx`, `Toolbar.tsx`,
+  `Map/StatusBar.tsx`, `Map/Legend.tsx`, seta de norte + `ScaleControl`, sidebar colapsável,
+  atalhos Ctrl+N/Ctrl+D, `utils/coords.ts` (conversão DD/DMS/UTM própria). Detalhes
+  completos de teste na seção 4a.
+- **Achado de automação, não do app:** durante o teste, cliques sintéticos por coordenada
+  via ferramenta de automação do browser se mostraram não-confiáveis neste ambiente
+  (padrão de flakiness já documentado nesta sessão para desenho de polígono, agora também
+  visto em botões de toolbar/menu) — confirmado repetidamente que disparar o evento de
+  clique via JavaScript direto no elemento é confiável e reflete o comportamento real da
+  aplicação; usado como método de verificação para toda a Fase A depois da primeira
+  ocorrência do problema.
+- Próximo passo: Fase B (ferramentas de mapa avançadas — ponto georreferenciado, entrada de
+  polígono por coordenadas, reconsiderar snap topológico, impressão de mapa A4, croqui da
+  ficha sobre imagem de satélite).

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, GeoJSON, LayersControl, WMSTileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, GeoJSON, LayersControl, ScaleControl, WMSTileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { Layer, PathOptions } from 'leaflet'
 import { api } from '../../api/client'
 import type { ImovelFeature, ImovelFeatureCollection } from '../../types/imovel'
@@ -9,6 +9,8 @@ import type { CamadaImportada } from '../../utils/importarGeo'
 import { useMunicipioStore } from '../../store/municipioStore'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from './constants'
 import { Regua } from './Regua'
+import { Legend } from './Legend'
+import { StatusBar } from './StatusBar'
 import L from 'leaflet'
 
 export type Destino = { lat: number; lng: number; zoom?: number }
@@ -189,6 +191,38 @@ function Voador({ destino }: { destino: Destino | null }) {
   return null
 }
 
+// Ajusta o zoom/centro para enquadrar todos os imóveis carregados (comando "Ver todos").
+function FitTodos({ comandoEm, dados }: { comandoEm?: number; dados: ImovelFeatureCollection }) {
+  const map = useMap()
+  const dadosRef = useRef(dados)
+  dadosRef.current = dados
+
+  useEffect(() => {
+    if (!comandoEm) return
+    try {
+      const layer = L.geoJSON(dadosRef.current as never)
+      const bounds = layer.getBounds()
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 20 })
+    } catch {
+      // Sem imóveis carregados — nada para enquadrar
+    }
+  }, [comandoEm, map])
+
+  return null
+}
+
+// Seta de norte fixa sobre o mapa — o mapa não gira, então sempre aponta para cima.
+function SetaNorte() {
+  return (
+    <div
+      className="absolute right-3.5 bottom-[130px] z-700 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[13px] font-black text-gray-800 shadow-lg"
+      title="Norte"
+    >
+      N↑
+    </div>
+  )
+}
+
 type Props = {
   selecionadoId: number | null
   onSelect: (feature: ImovelFeature) => void
@@ -197,6 +231,7 @@ type Props = {
   onDadosCarregados?: (fc: ImovelFeatureCollection) => void
   camadasImportadas?: CamadaImportada[]
   camadasWms?: CamadaWms[]
+  fitTodosEm?: number
 }
 
 export function MapView({
@@ -207,6 +242,7 @@ export function MapView({
   onDadosCarregados,
   camadasImportadas,
   camadasWms,
+  fitTodosEm,
 }: Props) {
   const [dados, setDados] = useState<ImovelFeatureCollection>(VAZIO)
   const centro = useMunicipioStore((s) => s.municipio.centro)
@@ -269,7 +305,12 @@ export function MapView({
       <BotoesGoogle />
       <Regua />
       <Voador destino={voarPara ?? null} />
+      <FitTodos comandoEm={fitTodosEm} dados={dados} />
       <BuscadorDeImoveis onData={setDados} recarregarEm={recarregarEm} />
+      <Legend />
+      <SetaNorte />
+      <ScaleControl position="bottomleft" imperial={false} />
+      <StatusBar totalVisiveis={dados.features.length} />
     </MapContainer>
   )
 }

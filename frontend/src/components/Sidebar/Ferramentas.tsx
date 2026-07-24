@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ImovelFeatureCollection } from '../../types/imovel'
 import type { CamadaImportada } from '../../utils/importarGeo'
 import { importarArquivo } from '../../utils/importarGeo'
@@ -13,6 +13,7 @@ type Props = {
   camadasWms: CamadaWms[]
   onAdicionarWms: (camada: CamadaWms) => void
   onRemoverWms: (id: string) => void
+  abrirFormularioEm?: number
 }
 
 function exportarCSV(fc: ImovelFeatureCollection) {
@@ -38,9 +39,14 @@ export function Ferramentas({
   camadasWms,
   onAdicionarWms,
   onRemoverWms,
+  abrirFormularioEm,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [wmsAberto, setWmsAberto] = useState(false)
+
+  useEffect(() => {
+    if (abrirFormularioEm) setWmsAberto(true)
+  }, [abrirFormularioEm])
   const [wmsNome, setWmsNome] = useState('')
   const [wmsUrl, setWmsUrl] = useState('')
   const [wmsLayers, setWmsLayers] = useState('')
