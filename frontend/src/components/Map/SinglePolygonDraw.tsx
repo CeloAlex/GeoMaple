@@ -7,6 +7,7 @@ import { poligonoParaLatLngs, layerParaPoligono, calcularArea } from './geoDrawU
 
 export type SinglePolygonHandle = {
   iniciarDesenho: () => void
+  criarDePontos: (pontos: L.LatLngExpression[]) => void
 }
 
 type Props = {
@@ -37,6 +38,14 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
         showArea: true,
         allowIntersection: false,
       }).enable()
+    },
+    criarDePontos(pontos) {
+      if (camadaRef.current) grupoRef.current.removeLayer(camadaRef.current)
+      const layer = L.polygon(pontos, estiloRef.current)
+      grupoRef.current.addLayer(layer)
+      camadaRef.current = layer
+      map.fitBounds(layer.getBounds(), { maxZoom: 19 })
+      onChangeRef.current(layerParaPoligono(layer), calcularArea(layer))
     },
   }))
 

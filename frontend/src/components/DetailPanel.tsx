@@ -56,7 +56,7 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
   const c = centroidePoligono(feature.geometry)
 
   return (
-    <aside className="absolute top-0 right-0 z-1000 h-full w-80 overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-xl">
+    <aside className="absolute top-0 right-0 z-1000 h-full w-80 overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-xl print:hidden">
       <div className="mb-4 flex items-start justify-between gap-2">
         <h2 className="font-mono text-lg font-semibold text-navy">{imovel.insc}</h2>
         <button

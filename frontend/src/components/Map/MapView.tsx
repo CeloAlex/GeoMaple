@@ -9,6 +9,7 @@ import type { CamadaImportada } from '../../utils/importarGeo'
 import { useMunicipioStore } from '../../store/municipioStore'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from './constants'
 import { Regua } from './Regua'
+import { PontoGeorreferenciado } from './PontoGeorreferenciado'
 import { Legend } from './Legend'
 import { StatusBar } from './StatusBar'
 import L from 'leaflet'
@@ -169,7 +170,7 @@ function BotoesGoogle() {
   }
 
   return (
-    <div className="absolute top-[170px] left-2.5 z-1000 flex flex-col overflow-hidden rounded border border-gray-300 bg-white text-sm shadow">
+    <div className="absolute top-[170px] left-2.5 z-1000 flex flex-col overflow-hidden rounded border border-gray-300 bg-white text-sm shadow print:hidden">
       <button onClick={abrirGoogleMaps} className="px-2 py-1.5 hover:bg-gray-100" title="Abrir no Google Maps">
         🛰️
       </button>
@@ -304,6 +305,7 @@ export function MapView({
       </LayersControl>
       <BotoesGoogle />
       <Regua />
+      <PontoGeorreferenciado />
       <Voador destino={voarPara ?? null} />
       <FitTodos comandoEm={fitTodosEm} dados={dados} />
       <BuscadorDeImoveis onData={setDados} recarregarEm={recarregarEm} />

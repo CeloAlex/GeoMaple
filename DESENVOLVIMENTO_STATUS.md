@@ -307,22 +307,43 @@ mesmo padrão gradativo das Fases 1-4 anteriores:
   "Sobre", atalho Ctrl+N abrindo o wizard.
 - `tsc -b`, `oxlint` e `npm run build` limpos.
 
-### Fase B — Ferramentas de mapa avançadas
-- [ ] Painel "Ponto georreferenciado": captura de coordenada por clique no mapa com
-      conversão DD/DMS/UTM, formulário de entrada manual de coordenada, lista de pontos
-      registrados na sessão (não precisa persistir no backend, é uma ferramenta de campo).
-- [ ] Entrada de polígono por tabela de coordenadas (colar lista de pontos ou importar CSV)
-      como alternativa a desenhar clicando no mapa — útil para levantamentos com GPS/estação
-      total que já produzem uma lista de coordenadas.
-- [ ] **Reconsiderar snap topológico (item 6 do backlog residual):** o protótipo tem
-      (`runTopoSnap`, painel com tolerância configurável) — não é só uma ideia nossa. Ainda
-      assim, avaliar uma versão mais simples primeiro (snap só ao vértice mais próximo
-      dentro de uma tolerância fixa, sem UI de configuração) antes de replicar o painel
-      completo, para não gastar todo o orçamento da fase nisso.
-- [ ] "Imprimir Mapa A4 Paisagem": impressão do mapa inteiro (título, observações, SRC/datum,
-      estatísticas), diferente da ficha por imóvel que já existe.
-- [ ] Croqui da ficha cadastral sobreposto a um recorte real da imagem de satélite (hoje é
-      só o esboço SVG sem imagem de fundo) — gap de fidelidade visual, não de dado.
+### Fase B — Ferramentas de mapa avançadas — 🟡 3 de 5 concluídos (2026-07-23)
+- [x] Painel "Ponto georreferenciado" (`Map/PontoGeorreferenciado.tsx`): botão flutuante no
+      mapa (abaixo da régua) que ativa captura por clique, formulário de entrada manual
+      (lat/lng), lista de pontos da sessão com conversão DD/DMS/UTM (`utils/coords.ts`) e
+      remoção individual/em massa. Não persiste no backend — ferramenta de apoio de campo,
+      como no protótipo. Testado no browser: entrada manual, conversões DD/DMS/UTM com
+      valores plausíveis para Ouro Preto (zona UTM 23S).
+- [x] Entrada de polígono por lista de coordenadas coladas (`Map/ColarCoordenadas.tsx` +
+      `parseListaCoordenadas` em `geoDrawUtils.ts`, formato "lat,lng" por linha, graus
+      decimais) — alternativa a desenhar clicando, para levantamentos de GPS/estação total.
+      Novo método `criarDePontos` em `SinglePolygonDraw` (Quadras/Provisórios) e
+      `GeoDrawLayer` (wizard, terreno+edificação). Testado no browser nos três lugares:
+      Quadras, wizard (terreno). Não inclui importação de arquivo CSV separado — só colar
+      texto, que cobre o mesmo caso de uso com menos código.
+- [x] "Imprimir Mapa A4 Paisagem": em vez de gerar uma imagem/canvas do mapa (exigiria nova
+      dependência), a impressão usa `@media print` nativo do navegador — a página já é o
+      mapa em tela cheia, então só é preciso ocultar a "casca" do app (`print:hidden` em
+      MenuBar/Toolbar/Sidebar/DetailPanel/StatusBar/ferramentas flutuantes) e mostrar um
+      cabeçalho específico de impressão (título, município/UF, data, contagem de imóveis
+      visíveis) via `hidden print:block`. `@page { size: A4 landscape }` em `index.css`.
+      Ligado a Ctrl+P, ao item de menu e ao ícone da toolbar. **Verificado via inspeção do
+      DOM/CSS computado** (cabeçalho presente com o texto certo e `display:none` fora de
+      impressão) — não acionei o diálogo nativo de impressão de fato na automação, mesma
+      categoria de limitação já documentada para a Ficha cadastral (dialog nativo trava o
+      CDP); recomendo um teste manual de Ctrl+P para conferir o layout final na folha.
+- [ ] **Snap topológico — adiado para Fase B2.** Ainda não implementado. Ao dimensionar o
+      esforço desta fase, os outros 3 itens (ponto georreferenciado, entrada por
+      coordenadas, impressão de mapa) já consumiram o orçamento razoável de uma etapa —
+      snap de vértices (mesmo a versão simplificada "só tolerância fixa, sem painel de
+      configuração" cogitada antes) ainda exige acesso às geometrias vizinhas carregadas
+      dentro dos componentes de desenho (`SinglePolygonDraw`/`GeoDrawLayer`), que hoje não
+      recebem esse dado — é a peça que falta antes de implementar de fato.
+- [ ] **Croqui com imagem de satélite real — adiado para Fase B2.** A ficha impressa
+      continua com o esboço SVG sem imagem de fundo. Implementar exigiria buscar/compor
+      tiles Esri num canvas (a ficha abre numa janela nova sem acesso ao mapa Leaflet já
+      carregado) — engenharia real, não só configuração, então ficou para a próxima
+      iteração em vez de arriscar uma versão malfeita agora.
 
 ### Fase C — Catálogo GeoNetwork completo
 - [ ] Busca `getCapabilities` num servidor WMS/GeoNetwork informado pelo operador, listando
@@ -531,3 +552,20 @@ com backend/DB reais.
 - Próximo passo: Fase B (ferramentas de mapa avançadas — ponto georreferenciado, entrada de
   polígono por coordenadas, reconsiderar snap topológico, impressão de mapa A4, croqui da
   ficha sobre imagem de satélite).
+
+### 2026-07-23 — Fase B: ferramentas de mapa avançadas (3 de 5 itens)
+- `Map/PontoGeorreferenciado.tsx` (captura por clique + entrada manual + lista com
+  DD/DMS/UTM), `Map/ColarCoordenadas.tsx` + `parseListaCoordenadas` (entrada de polígono por
+  lista colada, ligada a `SinglePolygonDraw.criarDePontos` e `GeoDrawLayer.criarDePontos`) e
+  impressão de mapa A4 via `@media print` nativo (sem nova dependência de canvas/imagem).
+- Testado no browser: ponto manual com conversão DD/DMS/UTM plausível (zona 23S); colar
+  coordenadas testado em Quadras E no wizard (terreno), ambos calculando área corretamente
+  a partir dos pontos colados; cabeçalho de impressão confirmado no DOM (texto certo,
+  oculto fora de impressão via CSS) — o diálogo nativo de impressão em si não foi acionado
+  na automação (mesma limitação já documentada para a Ficha, trava o CDP), recomendo
+  conferência manual do Ctrl+P.
+- Itens 3 (snap topológico) e 5 (croqui sobre satélite) **adiados para uma Fase B2** — ambos
+  exigem mais engenharia de base (acesso a geometrias vizinhas nos componentes de desenho;
+  composição de tiles num canvas fora do contexto do mapa) do que cabia razoavelmente nesta
+  etapa junto com os outros 3 itens. Motivo detalhado na seção 4a.
+- `tsc -b`, `oxlint` e `npm run build` limpos.

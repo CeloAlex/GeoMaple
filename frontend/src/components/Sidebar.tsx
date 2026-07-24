@@ -59,7 +59,7 @@ export function Sidebar({
   const ehAdmin = usuario?.perm === 'admin'
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col bg-navy text-white">
+    <aside className="flex w-72 shrink-0 flex-col bg-navy text-white print:hidden">
       <div className="border-b border-white/10 p-4">
         <h1 className="text-lg font-semibold">GeoMaple</h1>
         <p className="text-xs text-white/60">

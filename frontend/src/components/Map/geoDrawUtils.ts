@@ -17,3 +17,23 @@ export function layerParaPoligono(layer: L.Polygon): PolygonGeoJSON {
 export function calcularArea(layer: L.Polygon): number {
   return L.GeometryUtil.geodesicArea(layer.getLatLngs()[0] as L.LatLng[])
 }
+
+// Parseia uma lista de coordenadas colada pelo operador (uma por linha, "lat,lng" /
+// "lat lng" / "lat;lng" — graus decimais). Usada como alternativa a desenhar clicando no
+// mapa, para quem já tem uma lista de pontos de GPS/estação total. Retorna null se não
+// houver ao menos 3 pontos válidos (mínimo para formar um polígono).
+export function parseListaCoordenadas(texto: string): L.LatLngExpression[] | null {
+  const pontos: L.LatLngExpression[] = []
+  for (const linha of texto.split('\n')) {
+    const limpa = linha.trim()
+    if (!limpa) continue
+    const partes = limpa.split(/[,; \t]+/).filter(Boolean)
+    if (partes.length < 2) continue
+    const lat = Number(partes[0])
+    const lng = Number(partes[1])
+    if (Number.isNaN(lat) || Number.isNaN(lng)) continue
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) continue
+    pontos.push([lat, lng])
+  }
+  return pontos.length >= 3 ? pontos : null
+}
