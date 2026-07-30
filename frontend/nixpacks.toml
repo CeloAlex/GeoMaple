@@ -8,5 +8,6 @@
 cmds = [
   "npm install -g npm@10.9.2",
   "rm -f package-lock.json",
+  "npm cache clean --force",
   "npm install",
 ]
