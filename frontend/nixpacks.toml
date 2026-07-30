@@ -1,2 +1,6 @@
+# package-lock.json é gerado no Windows e não registra corretamente os binários
+# nativos opcionais do rolldown/vite para linux-x64-gnu (bug npm/cli#4828) —
+# removê-lo antes de instalar força o npm a resolver as dependências certas
+# para a plataforma de build do Railway.
 [phases.install]
-cmds = ["npm install"]
+cmds = ["rm -f package-lock.json", "npm install"]
