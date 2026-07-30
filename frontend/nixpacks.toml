@@ -1,13 +1,12 @@
-# O builder do Nixpacks/Railway pode rodar em arquitetura/plataforma diferente
-# da imagem final, fazendo o npm resolver o binário nativo opcional errado para
-# o rolldown (bundler do Vite 8). As flags --os/--cpu/--libc do `npm install`
-# corrigem isso, mas só existem a partir do npm 10.9.1 — a imagem do Nixpacks
-# vem com 10.8.2, então as flags eram ignoradas silenciosamente sem atualizar
-# o npm primeiro. Fixado em 10.9.2 (não @latest) porque o npm 12+ exige Node
-# 22+, incompatível com o Node 20 deste build.
+# O npm 10.8.2 (versão do builder Nixpacks) tem um bug conhecido de
+# optional dependencies com o binário nativo do rolldown (bundler do Vite 8)
+# para linux-x64-gnu (npm/cli#4828). npm@10.9.2 corrige a detecção de
+# plataforma. NÃO usar --libc=glibc explícito: o pacote
+# @rolldown/binding-linux-x64-gnu não declara campo "libc" no registry, e essa
+# flag faz o npm excluí-lo em vez de resolvê-lo.
 [phases.install]
 cmds = [
   "npm install -g npm@10.9.2",
   "rm -f package-lock.json",
-  "npm install --os=linux --cpu=x64 --libc=glibc",
+  "npm install",
 ]
