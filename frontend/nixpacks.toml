@@ -3,10 +3,11 @@
 # o rolldown (bundler do Vite 8). As flags --os/--cpu/--libc do `npm install`
 # corrigem isso, mas só existem a partir do npm 10.9.1 — a imagem do Nixpacks
 # vem com 10.8.2, então as flags eram ignoradas silenciosamente sem atualizar
-# o npm primeiro.
+# o npm primeiro. Fixado em 10.9.2 (não @latest) porque o npm 12+ exige Node
+# 22+, incompatível com o Node 20 deste build.
 [phases.install]
 cmds = [
-  "npm install -g npm@latest",
+  "npm install -g npm@10.9.2",
   "rm -f package-lock.json",
   "npm install --os=linux --cpu=x64 --libc=glibc",
 ]
