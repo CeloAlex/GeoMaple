@@ -1,0 +1,17 @@
+# O npm (em qualquer versão/flag testada) não instala o binário nativo
+# opcional @rolldown/binding-linux-x64-gnu no builder do Railway — `npm ci`
+# instala 171 pacotes aqui contra 180 no dev local (Windows), sempre faltando
+# exatamente esse binário, quebrando `vite build`. Após esgotar as opções de
+# flags do npm (--os/--cpu/--libc, bump de versão, limpeza de cache, pin manual
+# da optionalDependency), a solução que funciona de fato é baixar e extrair o
+# pacote manualmente, contornando a resolução de optionalDependencies do npm.
+#
+# Se o rolldown for atualizado (ver "rolldown" em package-lock.json), atualizar
+# a versão abaixo também.
+[phases.install]
+cmds = [
+  "npm ci",
+  "mkdir -p node_modules/@rolldown/binding-linux-x64-gnu",
+  "curl -sL https://registry.npmjs.org/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.1.tgz -o /tmp/rolldown-binding.tgz",
+  "tar -xzf /tmp/rolldown-binding.tgz -C node_modules/@rolldown/binding-linux-x64-gnu --strip-components=1",
+]
