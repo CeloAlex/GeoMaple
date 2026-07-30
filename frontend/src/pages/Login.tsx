@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/authStore'
 import { useMunicipioStore } from '../store/municipioStore'
+import logo from '../assets/logo.png'
 
 export function Login() {
   const autenticar = useAuthStore((s) => s.autenticar)
@@ -37,7 +38,7 @@ export function Login() {
     <div className="flex h-full items-center justify-center bg-navy">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-semibold text-navy">GeoMaple</h1>
+          <img src={logo} alt="GeoMaple" className="mx-auto mb-2 w-40" />
           <p className="text-sm text-gray-500">
             SGCIM · Prefeitura de {municipio.nome}/{municipio.uf}
           </p>
