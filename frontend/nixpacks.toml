@@ -1,6 +1,12 @@
 # O builder do Nixpacks/Railway pode rodar em arquitetura/plataforma diferente
 # da imagem final, fazendo o npm resolver o binário nativo opcional errado para
-# o rolldown (bundler do Vite 8) — ele tenta linux-x64-gnu, wasi e wasm32-wasi,
-# e nenhum é instalado. Forçar --os/--cpu/--libc explicitamente resolve.
+# o rolldown (bundler do Vite 8). As flags --os/--cpu/--libc do `npm install`
+# corrigem isso, mas só existem a partir do npm 10.9.1 — a imagem do Nixpacks
+# vem com 10.8.2, então as flags eram ignoradas silenciosamente sem atualizar
+# o npm primeiro.
 [phases.install]
-cmds = ["rm -f package-lock.json", "npm install --os=linux --cpu=x64 --libc=glibc"]
+cmds = [
+  "npm install -g npm@latest",
+  "rm -f package-lock.json",
+  "npm install --os=linux --cpu=x64 --libc=glibc",
+]
