@@ -1,6 +1,6 @@
-# package-lock.json é gerado no Windows e não registra corretamente os binários
-# nativos opcionais do rolldown/vite para linux-x64-gnu (bug npm/cli#4828) —
-# removê-lo antes de instalar força o npm a resolver as dependências certas
-# para a plataforma de build do Railway.
+# O builder do Nixpacks/Railway pode rodar em arquitetura/plataforma diferente
+# da imagem final, fazendo o npm resolver o binário nativo opcional errado para
+# o rolldown (bundler do Vite 8) — ele tenta linux-x64-gnu, wasi e wasm32-wasi,
+# e nenhum é instalado. Forçar --os/--cpu/--libc explicitamente resolve.
 [phases.install]
-cmds = ["rm -f package-lock.json", "npm install"]
+cmds = ["rm -f package-lock.json", "npm install --os=linux --cpu=x64 --libc=glibc"]
