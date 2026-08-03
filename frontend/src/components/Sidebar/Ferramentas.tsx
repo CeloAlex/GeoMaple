@@ -14,6 +14,7 @@ type Props = {
   onAdicionarWms: (camada: CamadaWms) => void
   onRemoverWms: (id: string) => void
   abrirFormularioEm?: number
+  onErro?: (msg: string) => void
 }
 
 function exportarCSV(fc: ImovelFeatureCollection) {
@@ -40,6 +41,7 @@ export function Ferramentas({
   onAdicionarWms,
   onRemoverWms,
   abrirFormularioEm,
+  onErro,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [wmsAberto, setWmsAberto] = useState(false)
@@ -50,6 +52,7 @@ export function Ferramentas({
   const [wmsNome, setWmsNome] = useState('')
   const [wmsUrl, setWmsUrl] = useState('')
   const [wmsLayers, setWmsLayers] = useState('')
+  const [wmsVersion, setWmsVersion] = useState<'1.1.1' | '1.3.0'>('1.1.1')
 
   async function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0]
@@ -57,9 +60,13 @@ export function Ferramentas({
     if (!arquivo) return
     try {
       const camada = await importarArquivo(arquivo)
+      if (camada.geojson.features.length === 0) {
+        onErro?.(`Não foi possível extrair feições de "${arquivo.name}" — verifique se é um KML/GeoJSON válido.`)
+        return
+      }
       onImportar(camada)
     } catch {
-      // Falha silenciosa é aceitável aqui — é uma camada de referência visual, não dado cadastral
+      onErro?.(`Falha ao importar "${arquivo.name}" — verifique se é um KML/GeoJSON válido.`)
     }
   }
 
@@ -70,10 +77,12 @@ export function Ferramentas({
       nome: wmsNome.trim() || wmsLayers.trim(),
       url: wmsUrl.trim(),
       layers: wmsLayers.trim(),
+      version: wmsVersion,
     })
     setWmsNome('')
     setWmsUrl('')
     setWmsLayers('')
+    setWmsVersion('1.1.1')
     setWmsAberto(false)
   }
 
@@ -134,6 +143,14 @@ export function Ferramentas({
             placeholder="Nome técnico da(s) layer(s)"
             className="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white placeholder:text-white/40 focus:border-verde focus:outline-none"
           />
+          <select
+            value={wmsVersion}
+            onChange={(e) => setWmsVersion(e.target.value as '1.1.1' | '1.3.0')}
+            className="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white focus:border-verde focus:outline-none"
+          >
+            <option value="1.1.1" className="text-black">Versão WMS 1.1.1 (padrão)</option>
+            <option value="1.3.0" className="text-black">Versão WMS 1.3.0</option>
+          </select>
           <button
             onClick={adicionarWms}
             disabled={!wmsUrl.trim() || !wmsLayers.trim()}

@@ -40,17 +40,21 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
     edificacao: null,
   })
   const tipoEmDesenhoRef = useRef<TipoDesenho>('terreno')
+  const desenhoAtivoRef = useRef<L.Draw.Polygon | null>(null)
   const callbacksRef = useRef({ onTerrenoChange, onEdificacaoChange })
   callbacksRef.current = { onTerrenoChange, onEdificacaoChange }
 
   useImperativeHandle(ref, () => ({
     iniciarDesenho(tipo) {
       tipoEmDesenhoRef.current = tipo
-      new L.Draw.Polygon(map as unknown as L.DrawMap, {
+      desenhoAtivoRef.current?.disable()
+      const desenho = new L.Draw.Polygon(map as unknown as L.DrawMap, {
         shapeOptions: ESTILO[tipo],
         showArea: true,
         allowIntersection: false,
-      }).enable()
+      })
+      desenhoAtivoRef.current = desenho
+      desenho.enable()
     },
     criarDePontos(tipo, pontos) {
       const atual = camadasRef.current[tipo]
@@ -71,8 +75,10 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
     const grupo = grupoRef.current
     grupo.addTo(map)
 
+    // topleft (não topright) para não empilhar com o LayersControl do mapa — caso
+    // contrário os ícones de editar/excluir ficam espremidos no mesmo canto.
     const controle = new L.Control.Draw({
-      position: 'topright',
+      position: 'topleft',
       draw: { polyline: false, polygon: false, rectangle: false, circle: false, marker: false, circlemarker: false },
       edit: { featureGroup: grupo, remove: true },
     })

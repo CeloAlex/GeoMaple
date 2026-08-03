@@ -1,3 +1,5 @@
+import { kml } from '@tmcw/togeojson'
+
 export type CamadaImportada = {
   id: string
   nome: string
@@ -16,40 +18,17 @@ export function parseGeoJSONTexto(texto: string, nome: string): CamadaImportada 
   return { id: crypto.randomUUID(), nome, geojson: { type: 'FeatureCollection', features } }
 }
 
-// Extração simplificada de Polygon/LineString de um KML — mesma abordagem por regex do
-// protótipo SGCIM_v10.html (não é um parser XML completo, mas cobre o caso comum de
-// exportações do Google Earth/QGIS usadas como referência visual).
+// Parser real de XML (via @tmcw/togeojson + DOMParser nativo do navegador) — cobre a
+// estrutura padrão usada por exportações do Google Earth/QGIS (Polygon/outerBoundaryIs/
+// LinearRing, MultiGeometry, namespaces), diferente da tentativa anterior por regex que
+// só reconhecia <coordinates> diretamente dentro de <Polygon>.
 export function parseKMLTexto(texto: string, nomeArquivo: string): CamadaImportada {
-  const features: GeoJSONFeatureGenerica[] = []
-  const placemarkRe = /<Placemark[\s\S]*?<\/Placemark>/g
-  let m: RegExpExecArray | null
+  const dom = new DOMParser().parseFromString(texto, 'text/xml')
+  const erro = dom.querySelector('parsererror')
+  if (erro) throw new Error('KML inválido: ' + erro.textContent)
 
-  while ((m = placemarkRe.exec(texto))) {
-    const bloco = m[0]
-    const nomeM = /<name>([\s\S]*?)<\/name>/.exec(bloco)
-    const nome = nomeM?.[1]?.trim() || nomeArquivo
-
-    const polyM = /<Polygon[\s\S]*?<coordinates>([\s\S]*?)<\/coordinates>/.exec(bloco)
-    const lineM = !polyM ? /<LineString[\s\S]*?<coordinates>([\s\S]*?)<\/coordinates>/.exec(bloco) : null
-    const raw = polyM?.[1] ?? lineM?.[1]
-    if (!raw) continue
-
-    const pontos = raw
-      .trim()
-      .split(/\s+/)
-      .map((p) => p.split(',').map(Number))
-      .filter((c) => c.length >= 2 && !Number.isNaN(c[0]) && !Number.isNaN(c[1]))
-      .map(([lng, lat]) => [lng, lat])
-
-    if (pontos.length < 2) continue
-
-    features.push({
-      type: 'Feature',
-      geometry: polyM ? { type: 'Polygon', coordinates: [pontos] } : { type: 'LineString', coordinates: pontos },
-      properties: { nome },
-    })
-  }
-
+  const gj = kml(dom)
+  const features = gj.features.filter((f) => f.geometry != null) as unknown as GeoJSONFeatureGenerica[]
   return { id: crypto.randomUUID(), nome: nomeArquivo, geojson: { type: 'FeatureCollection', features } }
 }
 

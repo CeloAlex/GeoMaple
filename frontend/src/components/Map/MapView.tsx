@@ -9,17 +9,21 @@ import type { CamadaImportada } from '../../utils/importarGeo'
 import { useMunicipioStore } from '../../store/municipioStore'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from './constants'
 import { Regua } from './Regua'
+import { ReguaArea } from './ReguaArea'
 import { PontoGeorreferenciado } from './PontoGeorreferenciado'
 import { Legend } from './Legend'
 import { StatusBar } from './StatusBar'
+import { aplicarLocalePtBr } from './leafletDrawLocale'
 import L from 'leaflet'
 
+aplicarLocalePtBr()
+
 export type Destino = { lat: number; lng: number; zoom?: number }
-export type CamadaWms = { id: string; nome: string; url: string; layers: string }
+export type CamadaWms = { id: string; nome: string; url: string; layers: string; version?: '1.1.1' | '1.3.0' }
 
 const VAZIO: ImovelFeatureCollection = { type: 'FeatureCollection', features: [] }
 
-function CamadaQuadras({ recarregarEm }: { recarregarEm?: number }) {
+function CamadaQuadras({ recarregarEm, selecionadaId }: { recarregarEm?: number; selecionadaId?: number | null }) {
   const [quadras, setQuadras] = useState<Quadra[]>([])
 
   useEffect(() => {
@@ -42,11 +46,21 @@ function CamadaQuadras({ recarregarEm }: { recarregarEm?: number }) {
       })),
   }
 
+  function estilo(feature?: { properties: { id: number } }): PathOptions {
+    if (feature?.properties.id === selecionadaId) {
+      return { color: '#f1c40f', weight: 3, fillColor: '#f1c40f', fillOpacity: 0.3 }
+    }
+    return { color: '#c9a227', weight: 2, fillColor: '#c9a227', fillOpacity: 0.08, dashArray: '6,4' }
+  }
+
   return (
+    // Key inclui as geometrias (não só os ids) porque o <GeoJSON> do react-leaflet não
+    // reage a mudanças em `data` após montado — só remonta quando a key muda, então
+    // editar o polígono de uma quadra já existente (mesmo id) não seria refletido no mapa.
     <GeoJSON
-      key={quadras.map((q) => q.id).join(',')}
+      key={JSON.stringify(fc)}
       data={fc as never}
-      style={{ color: '#c9a227', weight: 2, fillColor: '#c9a227', fillOpacity: 0.08, dashArray: '6,4' } as never}
+      style={estilo as never}
       onEachFeature={(feature, layer: Layer) => {
         layer.bindTooltip(feature.properties.label)
       }}
@@ -54,7 +68,7 @@ function CamadaQuadras({ recarregarEm }: { recarregarEm?: number }) {
   )
 }
 
-function CamadaProvisorios({ recarregarEm }: { recarregarEm?: number }) {
+function CamadaProvisorios({ recarregarEm, selecionadoId }: { recarregarEm?: number; selecionadoId?: number | null }) {
   const [lista, setLista] = useState<Provisorio[]>([])
 
   useEffect(() => {
@@ -77,11 +91,19 @@ function CamadaProvisorios({ recarregarEm }: { recarregarEm?: number }) {
       })),
   }
 
+  function estilo(feature?: { properties: { id: number } }): PathOptions {
+    if (feature?.properties.id === selecionadoId) {
+      return { color: '#f1c40f', weight: 3, fillColor: '#f1c40f', fillOpacity: 0.3 }
+    }
+    return { color: '#e67e22', weight: 2, fillColor: '#e67e22', fillOpacity: 0.15, dashArray: '4,4' }
+  }
+
   return (
+    // Mesmo motivo do fix acima em CamadaQuadras: key precisa refletir a geometria.
     <GeoJSON
-      key={lista.map((p) => p.id).join(',')}
+      key={JSON.stringify(fc)}
       data={fc as never}
-      style={{ color: '#e67e22', weight: 2, fillColor: '#e67e22', fillOpacity: 0.15, dashArray: '4,4' } as never}
+      style={estilo as never}
       onEachFeature={(feature, layer: Layer) => {
         layer.bindTooltip(feature.properties.label)
       }}
@@ -212,6 +234,31 @@ function FitTodos({ comandoEm, dados }: { comandoEm?: number; dados: ImovelFeatu
   return null
 }
 
+// Camada WMS adicionada manualmente (Sidebar/Ferramentas.tsx) ou via catálogo GeoNetwork.
+// Sem tratamento de tileerror o Leaflet só mostra tiles em branco quando o servidor
+// retorna uma ServiceException (nome técnico errado, versão incompatível etc.), sem
+// nenhum aviso — o operador só percebe que "não fez nada" ao ativar a camada.
+function CamadaWmsLayer({ camada, onErro }: { camada: CamadaWms; onErro?: (nome: string) => void }) {
+  const avisadoRef = useRef(false)
+
+  return (
+    <WMSTileLayer
+      url={camada.url}
+      layers={camada.layers}
+      format="image/png"
+      transparent
+      version={camada.version ?? '1.1.1'}
+      eventHandlers={{
+        tileerror: () => {
+          if (avisadoRef.current) return
+          avisadoRef.current = true
+          onErro?.(camada.nome)
+        },
+      }}
+    />
+  )
+}
+
 // Seta de norte fixa sobre o mapa — o mapa não gira, então sempre aponta para cima.
 function SetaNorte() {
   return (
@@ -233,6 +280,11 @@ type Props = {
   camadasImportadas?: CamadaImportada[]
   camadasWms?: CamadaWms[]
   fitTodosEm?: number
+  quadraSelecionadaId?: number | null
+  provisorioSelecionadoId?: number | null
+  onWmsErro?: (nomeCamada: string) => void
+  medirDistanciaEm?: number
+  medirAreaEm?: number
 }
 
 export function MapView({
@@ -244,6 +296,11 @@ export function MapView({
   camadasImportadas,
   camadasWms,
   fitTodosEm,
+  quadraSelecionadaId,
+  provisorioSelecionadoId,
+  onWmsErro,
+  medirDistanciaEm,
+  medirAreaEm,
 }: Props) {
   const [dados, setDados] = useState<ImovelFeatureCollection>(VAZIO)
   const centro = useMunicipioStore((s) => s.municipio.centro)
@@ -276,11 +333,21 @@ export function MapView({
         <LayersControl.BaseLayer name="Mapa (OpenStreetMap)">
           <TileLayer url={OSM_STREETS} attribution="&copy; OpenStreetMap contributors" maxZoom={MAX_ZOOM} maxNativeZoom={19} />
         </LayersControl.BaseLayer>
+        {/* Placeholder até que uma fonte real de ortofoto municipal seja definida —
+            reaproveita a mesma camada de satélite Esri por ora. */}
+        <LayersControl.BaseLayer name="Ortofoto">
+          <TileLayer
+            url={ESRI_WORLD_IMAGERY}
+            attribution="Tiles &copy; Esri"
+            maxZoom={MAX_ZOOM}
+            maxNativeZoom={ESRI_MAX_NATIVE_ZOOM}
+          />
+        </LayersControl.BaseLayer>
         <LayersControl.Overlay checked name="Quadras georreferenciadas">
-          <CamadaQuadras recarregarEm={recarregarEm} />
+          <CamadaQuadras recarregarEm={recarregarEm} selecionadaId={quadraSelecionadaId} />
         </LayersControl.Overlay>
         <LayersControl.Overlay checked name="Delimitações provisórias">
-          <CamadaProvisorios recarregarEm={recarregarEm} />
+          <CamadaProvisorios recarregarEm={recarregarEm} selecionadoId={provisorioSelecionadoId} />
         </LayersControl.Overlay>
         <LayersControl.Overlay checked name="Imóveis">
           <GeoJSON
@@ -299,12 +366,13 @@ export function MapView({
         )}
         {camadasWms?.map((c) => (
           <LayersControl.Overlay key={c.id} checked name={c.nome}>
-            <WMSTileLayer url={c.url} layers={c.layers} format="image/png" transparent />
+            <CamadaWmsLayer camada={c} onErro={onWmsErro} />
           </LayersControl.Overlay>
         ))}
       </LayersControl>
       <BotoesGoogle />
-      <Regua />
+      <Regua iniciarEm={medirDistanciaEm} />
+      <ReguaArea iniciarEm={medirAreaEm} />
       <PontoGeorreferenciado />
       <Voador destino={voarPara ?? null} />
       <FitTodos comandoEm={fitTodosEm} dados={dados} />

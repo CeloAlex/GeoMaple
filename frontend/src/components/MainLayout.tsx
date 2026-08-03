@@ -18,6 +18,8 @@ import { exportarImovelGeoJSON, exportarImovelKML } from '../utils/exportarImove
 import { useMunicipioStore } from '../store/municipioStore'
 import type { ImovelFeature, ImovelFeatureCollection, ImovelGeometria, ImovelRegistro, PolygonGeoJSON } from '../types/imovel'
 import type { CamadaImportada } from '../utils/importarGeo'
+import type { Quadra } from '../types/quadra'
+import type { Provisorio } from '../types/provisorio'
 
 const SEM_IMOVEIS: ImovelFeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -43,6 +45,10 @@ export function MainLayout() {
   const [imoveisVisiveis, setImoveisVisiveis] = useState<ImovelFeatureCollection>(SEM_IMOVEIS)
   const [camadasImportadas, setCamadasImportadas] = useState<CamadaImportada[]>([])
   const [camadasWms, setCamadasWms] = useState<CamadaWms[]>([])
+  const [quadraSelecionadaId, setQuadraSelecionadaId] = useState<number | null>(null)
+  const [provisorioSelecionadoId, setProvisorioSelecionadoId] = useState<number | null>(null)
+  const [medirDistanciaEm, setMedirDistanciaEm] = useState(0)
+  const [medirAreaEm, setMedirAreaEm] = useState(0)
 
   function mostrarAviso(msg: string) {
     setAviso(msg)
@@ -83,6 +89,20 @@ export function MainLayout() {
     } catch {
       mostrarAviso('Não foi possível carregar este imóvel.')
     }
+  }
+
+  function selecionarQuadra(quadra: Quadra) {
+    if (!quadra.geom) return
+    setQuadraSelecionadaId(quadra.id)
+    setVoarPara(centroidePoligono(quadra.geom))
+    setQuadrasAberto(false)
+  }
+
+  function selecionarProvisorio(provisorio: Provisorio) {
+    if (!provisorio.geom) return
+    setProvisorioSelecionadoId(provisorio.id)
+    setVoarPara(centroidePoligono(provisorio.geom))
+    setProvisoriosAberto(false)
   }
 
   function exportarKmlSelecionado() {
@@ -147,6 +167,8 @@ export function MainLayout() {
     onImprimirMapa: () => window.print(),
     onSobre: () => setSobreAberto(true),
     onIndisponivel: mostrarAviso,
+    onMedirDistancia: () => setMedirDistanciaEm((n) => n + 1),
+    onMedirArea: () => setMedirAreaEm((n) => n + 1),
   }
 
   return (
@@ -173,6 +195,7 @@ export function MainLayout() {
             onAdicionarWms={(camada) => setCamadasWms((cs) => [...cs, camada])}
             onRemoverWms={(id) => setCamadasWms((cs) => cs.filter((c) => c.id !== id))}
             abrirFormularioWmsEm={wmsFormEm}
+            onErro={mostrarAviso}
           />
         )}
         <main className="relative flex-1">
@@ -185,6 +208,11 @@ export function MainLayout() {
             camadasImportadas={camadasImportadas}
             camadasWms={camadasWms}
             fitTodosEm={fitTodosEm}
+            quadraSelecionadaId={quadraSelecionadaId}
+            provisorioSelecionadoId={provisorioSelecionadoId}
+            onWmsErro={(nome) => mostrarAviso(`⚠️ Camada WMS "${nome}" não retornou imagem — verifique nome técnico/URL/versão do serviço.`)}
+            medirDistanciaEm={medirDistanciaEm}
+            medirAreaEm={medirAreaEm}
           />
           <DetailPanel
             feature={selecionado}
@@ -215,10 +243,18 @@ export function MainLayout() {
         geomInicial={geomParaConversao}
       />
       {quadrasAberto && (
-        <QuadrasPanel onClose={() => setQuadrasAberto(false)} onAlterado={() => setRecarregarEm((n) => n + 1)} />
+        <QuadrasPanel
+          onClose={() => setQuadrasAberto(false)}
+          onAlterado={() => setRecarregarEm((n) => n + 1)}
+          onSelecionar={selecionarQuadra}
+        />
       )}
       {provisoriosAberto && (
-        <ProvisoriosPanel onClose={() => setProvisoriosAberto(false)} onAlterado={() => setRecarregarEm((n) => n + 1)} />
+        <ProvisoriosPanel
+          onClose={() => setProvisoriosAberto(false)}
+          onAlterado={() => setRecarregarEm((n) => n + 1)}
+          onSelecionar={selecionarProvisorio}
+        />
       )}
       {operadoresAberto && <OperadoresPanel onClose={() => setOperadoresAberto(false)} />}
       {auditoriaAberto && <AuditoriaPanel onClose={() => setAuditoriaAberto(false)} />}

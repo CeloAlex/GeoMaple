@@ -7,9 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "patch-package"
   },
   "dependencies": {
+    "@tmcw/togeojson": "^7.1.2",
     "axios": "^1.18.1",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
@@ -29,6 +31,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.4",
     "oxlint": "^1.71.0",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.22",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

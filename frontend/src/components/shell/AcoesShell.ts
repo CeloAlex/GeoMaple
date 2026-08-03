@@ -16,4 +16,6 @@ export type AcoesShell = {
   onImprimirMapa: () => void
   onSobre: () => void
   onIndisponivel: (mensagem: string) => void
+  onMedirDistancia: () => void
+  onMedirArea: () => void
 }

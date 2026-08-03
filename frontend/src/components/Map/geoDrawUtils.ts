@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import 'leaflet-draw'
 import type { PolygonGeoJSON } from '../../types/imovel'
+import { parseDMS, parseUTM, type SistemaCoord } from '../../utils/coords'
 
 export function poligonoParaLatLngs(geom: PolygonGeoJSON): L.LatLngExpression[] {
   return geom.coordinates[0].slice(0, -1).map(([lng, lat]) => [lat, lng])
@@ -18,16 +19,30 @@ export function calcularArea(layer: L.Polygon): number {
   return L.GeometryUtil.geodesicArea(layer.getLatLngs()[0] as L.LatLng[])
 }
 
-// Parseia uma lista de coordenadas colada pelo operador (uma por linha, "lat,lng" /
-// "lat lng" / "lat;lng" — graus decimais). Usada como alternativa a desenhar clicando no
-// mapa, para quem já tem uma lista de pontos de GPS/estação total. Retorna null se não
-// houver ao menos 3 pontos válidos (mínimo para formar um polígono).
-export function parseListaCoordenadas(texto: string): L.LatLngExpression[] | null {
+// Parseia uma lista de coordenadas colada pelo operador (uma por linha), no sistema
+// escolhido — graus decimais ("lat,lng"/"lat lng"/"lat;lng"), DMS (`20°23'06.9"S
+// 43°30'11.8"W`) ou UTM (`23S 612345E 7745678N`). Usada como alternativa a desenhar
+// clicando no mapa, para quem já tem uma lista de pontos de GPS/estação total. Retorna
+// null se não houver ao menos 3 pontos válidos (mínimo para formar um polígono).
+export function parseListaCoordenadas(texto: string, sistema: SistemaCoord = 'dd'): L.LatLngExpression[] | null {
   const pontos: L.LatLngExpression[] = []
-  for (const linha of texto.split('\n')) {
-    const limpa = linha.trim()
-    if (!limpa) continue
-    const partes = limpa.split(/[,; \t]+/).filter(Boolean)
+  for (const linhaBruta of texto.split('\n')) {
+    const linha = linhaBruta.trim()
+    if (!linha) continue
+
+    if (sistema === 'dms') {
+      const par = parseDMS(linha)
+      if (par) pontos.push([par.lat, par.lng])
+      continue
+    }
+
+    if (sistema === 'utm') {
+      const par = parseUTM(linha)
+      if (par) pontos.push([par.lat, par.lng])
+      continue
+    }
+
+    const partes = linha.split(/[,; \t]+/).filter(Boolean)
     if (partes.length < 2) continue
     const lat = Number(partes[0])
     const lng = Number(partes[1])

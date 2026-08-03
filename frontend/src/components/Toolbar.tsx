@@ -1,4 +1,5 @@
 import type { AcoesShell } from './shell/AcoesShell'
+import { mensagemForaDoEscopo } from '../constants/mensagens'
 
 type Botao = { icone: string; dica: string; onClick: () => void; destaque?: string }
 
@@ -16,8 +17,8 @@ export function Toolbar(acoes: AcoesShell) {
       { icone: '🚧', dica: 'Nova Delimitação Provisória (Ctrl+D)', onClick: acoes.onNovaProvisoria, destaque: 'bg-[#e67e22]/25 border-[#e67e22]' },
     ],
     [
-      { icone: '📐', dica: 'Régua: área', onClick: indisponivel('Use o botão de régua no mapa') },
-      { icone: '📏', dica: 'Régua: distância', onClick: indisponivel('Use o botão de régua no mapa') },
+      { icone: '📐', dica: 'Régua: área', onClick: acoes.onMedirArea },
+      { icone: '📏', dica: 'Régua: distância', onClick: acoes.onMedirDistancia },
       { icone: '📍', dica: 'Ponto georreferenciado', onClick: indisponivel('Use o botão 📍 no mapa (abaixo da régua)') },
       { icone: '📥', dica: 'Importar KML / KMZ / GeoJSON', onClick: indisponivel('Use "Importar KML/GeoJSON" na barra lateral') },
       { icone: '↩️', dica: 'Desfazer último vértice (Ctrl+Z)', onClick: indisponivel('Disponível durante o desenho de um polígono') },
@@ -32,9 +33,9 @@ export function Toolbar(acoes: AcoesShell) {
       { icone: '⬇️', dica: 'Exportar KML do imóvel selecionado', onClick: acoes.onExportarKmlSelecionado },
     ],
     [
-      { icone: '📊', dica: 'Importar planilha (40.000+)', onClick: indisponivel('Fora do escopo do MVP — ver DESENVOLVIMENTO_STATUS.md'), destaque: 'bg-verde/20 border-verde' },
+      { icone: '📊', dica: 'Importar planilha (40.000+)', onClick: indisponivel(mensagemForaDoEscopo('importação em massa; ver DESENVOLVIMENTO_STATUS.md')), destaque: 'bg-verde/20 border-verde' },
       { icone: '🌐', dica: 'GeoNetwork — Catálogo de camadas', onClick: acoes.onAbrirCatalogoGeoNetwork, destaque: 'bg-[#1a6a8a]/25 border-[#1a6a8a]' },
-      { icone: '⚠️', dica: 'Duplicidades cadastrais', onClick: indisponivel('Fora do escopo do MVP — dado mockado no protótipo original'), destaque: 'bg-red-500/15 border-red-500' },
+      { icone: '⚠️', dica: 'Duplicidades cadastrais', onClick: indisponivel(mensagemForaDoEscopo('dado mockado no protótipo original')), destaque: 'bg-red-500/15 border-red-500' },
       { icone: '👤', dica: 'Usuários e permissões', onClick: acoes.onOperadores, destaque: 'bg-[#1a6a8a]/25 border-[#1a6a8a]' },
     ],
     [

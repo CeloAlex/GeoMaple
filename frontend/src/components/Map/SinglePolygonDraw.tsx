@@ -26,6 +26,7 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
   const map = useMap()
   const grupoRef = useRef(new L.FeatureGroup())
   const camadaRef = useRef<L.Polygon | null>(null)
+  const desenhoAtivoRef = useRef<L.Draw.Polygon | null>(null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const estiloRef = useRef<L.PathOptions>({ color: cor, weight: 2, fillColor: cor, fillOpacity: 0.15, dashArray: '6,4' })
@@ -33,11 +34,14 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
 
   useImperativeHandle(ref, () => ({
     iniciarDesenho() {
-      new L.Draw.Polygon(map as unknown as L.DrawMap, {
+      desenhoAtivoRef.current?.disable()
+      const desenho = new L.Draw.Polygon(map as unknown as L.DrawMap, {
         shapeOptions: estiloRef.current,
         showArea: true,
         allowIntersection: false,
-      }).enable()
+      })
+      desenhoAtivoRef.current = desenho
+      desenho.enable()
     },
     criarDePontos(pontos) {
       if (camadaRef.current) grupoRef.current.removeLayer(camadaRef.current)
@@ -53,8 +57,10 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
     const grupo = grupoRef.current
     grupo.addTo(map)
 
+    // topleft (não topright) para não empilhar com o LayersControl do mapa — caso
+    // contrário os ícones de editar/excluir ficam espremidos no mesmo canto.
     const controle = new L.Control.Draw({
-      position: 'topright',
+      position: 'topleft',
       draw: { polyline: false, polygon: false, rectangle: false, circle: false, marker: false, circlemarker: false },
       edit: { featureGroup: grupo, remove: true },
     })

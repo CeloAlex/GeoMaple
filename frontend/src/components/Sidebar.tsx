@@ -31,6 +31,7 @@ type Props = {
   onAdicionarWms: (camada: CamadaWms) => void
   onRemoverWms: (id: string) => void
   abrirFormularioWmsEm?: number
+  onErro?: (msg: string) => void
 }
 
 export function Sidebar({
@@ -51,6 +52,7 @@ export function Sidebar({
   onAdicionarWms,
   onRemoverWms,
   abrirFormularioWmsEm,
+  onErro,
 }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const logout = useAuthStore((s) => s.logout)
@@ -71,7 +73,7 @@ export function Sidebar({
         <Busca onSelecionar={onSelecionarImovel} onBuscarEndereco={onBuscarEndereco} />
       </div>
 
-      <div className="flex flex-1 flex-col overflow-y-auto p-4 text-sm text-white/70">
+      <div className="p-4 pb-0 text-sm text-white/70">
         {podeEditar && (
           <button
             onClick={onNovoCadastro}
@@ -88,13 +90,34 @@ export function Sidebar({
         </button>
         <button
           onClick={onProvisorios}
-          className="mb-4 w-full rounded border border-orange-500/60 py-2 text-sm font-medium text-orange-400 transition hover:bg-orange-500/10"
+          className="w-full rounded border border-orange-500/60 py-2 text-sm font-medium text-orange-400 transition hover:bg-orange-500/10"
         >
           🚧 Provisórios
         </button>
+      </div>
+
+      {/* Navegação de uso diário — recebe a maior parte do espaço/scroll da sidebar,
+          em vez de ficar no fim, abaixo de ferramentas e ações administrativas. */}
+      <div className="flex flex-1 flex-col overflow-y-auto px-4 pt-4 pb-2 text-sm text-white/70">
+        <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Árvore hierárquica</p>
+        <ArvoreHierarquica onSelecionar={onSelecionarImovel} recarregarEm={recarregarArvoreEm} />
+      </div>
+
+      <div className="max-h-[45%] shrink-0 space-y-4 overflow-y-auto border-t border-white/10 px-4 py-4 text-sm text-white/70">
+        <Ferramentas
+          imoveisVisiveis={imoveisVisiveis}
+          camadasImportadas={camadasImportadas}
+          onImportar={onImportar}
+          onLimparImportadas={onLimparImportadas}
+          camadasWms={camadasWms}
+          onAdicionarWms={onAdicionarWms}
+          onRemoverWms={onRemoverWms}
+          abrirFormularioEm={abrirFormularioWmsEm}
+          onErro={onErro}
+        />
 
         {ehAdmin && (
-          <div className="mb-4 space-y-2 border-t border-white/10 pt-4">
+          <div className="space-y-2 border-t border-white/10 pt-4">
             <p className="text-xs font-semibold tracking-wide text-white/50 uppercase">Administração</p>
             <button
               onClick={onOperadores}
@@ -110,22 +133,6 @@ export function Sidebar({
             </button>
           </div>
         )}
-
-        <div className="mb-4 border-t border-white/10 pt-4">
-          <Ferramentas
-            imoveisVisiveis={imoveisVisiveis}
-            camadasImportadas={camadasImportadas}
-            onImportar={onImportar}
-            onLimparImportadas={onLimparImportadas}
-            camadasWms={camadasWms}
-            onAdicionarWms={onAdicionarWms}
-            onRemoverWms={onRemoverWms}
-            abrirFormularioEm={abrirFormularioWmsEm}
-          />
-        </div>
-
-        <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Árvore hierárquica</p>
-        <ArvoreHierarquica onSelecionar={onSelecionarImovel} recarregarEm={recarregarArvoreEm} />
       </div>
 
       <div className="border-t border-white/10 p-4 text-sm">

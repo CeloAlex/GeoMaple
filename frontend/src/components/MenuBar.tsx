@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import type { AcoesShell } from './shell/AcoesShell'
+import { mensagemForaDoEscopo } from '../constants/mensagens'
 
 type Item = { label: string; atalho?: string; onClick: () => void }
 type Menu = { label: string; itens: Item[] }
@@ -33,7 +34,7 @@ export function MenuBar(acoes: AcoesShell) {
       itens: [
         { label: 'Novo Cadastro Definitivo', atalho: 'Ctrl+N', onClick: acoes.onNovoCadastro },
         { label: 'Nova Delimitação Provisória', atalho: 'Ctrl+D', onClick: acoes.onNovaProvisoria },
-        { label: 'Importar planilha', onClick: indisponivel('Importação em massa fora do escopo atual — ver DESENVOLVIMENTO_STATUS.md') },
+        { label: 'Importar planilha', onClick: indisponivel(mensagemForaDoEscopo('importação em massa; ver DESENVOLVIMENTO_STATUS.md')) },
         { label: 'Abrir KML / KMZ / GeoJSON', onClick: indisponivel('Use "📥 Importar KML/GeoJSON" na barra lateral') },
         { label: 'Exportar KML', onClick: acoes.onExportarKmlSelecionado },
         { label: 'Exportar GeoJSON', onClick: acoes.onExportarGeoJsonSelecionado },
@@ -59,10 +60,10 @@ export function MenuBar(acoes: AcoesShell) {
     {
       label: 'Ferramentas',
       itens: [
-        { label: 'Régua: distância', onClick: indisponivel('Use o botão de régua no mapa') },
-        { label: 'Régua: área', onClick: indisponivel('Use o botão de régua no mapa') },
-        { label: 'Duplicidades cadastrais', onClick: indisponivel('Fora do escopo do MVP — dado mockado no protótipo original') },
-        { label: 'Consistência por quadra', onClick: indisponivel('Fora do escopo do MVP — dado mockado no protótipo original') },
+        { label: 'Régua: distância', onClick: acoes.onMedirDistancia },
+        { label: 'Régua: área', onClick: acoes.onMedirArea },
+        { label: 'Duplicidades cadastrais', onClick: indisponivel(mensagemForaDoEscopo('dado mockado no protótipo original')) },
+        { label: 'Consistência por quadra', onClick: indisponivel(mensagemForaDoEscopo('dado mockado no protótipo original')) },
         { label: 'Alterar sistema de coordenadas', onClick: indisponivel('Clique no rótulo "Sistema" na barra inferior do mapa') },
       ],
     },

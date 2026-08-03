@@ -26,6 +26,18 @@ body {
   bottom: 26px;
 }
 
+/* Evita que o tooltip de medição e os ícones de vértice do leaflet-draw (Map/Regua.tsx,
+   Map/ReguaArea.tsx, showLength/showArea: true) fiquem por cima do resultado da medição
+   exibido nos botões fixos do canto superior esquerdo do mapa. */
+.leaflet-draw-tooltip {
+  z-index: 1100;
+  margin-top: 14px;
+}
+.leaflet-editing-icon,
+.leaflet-draw-guide-dash {
+  z-index: 650;
+}
+
 /* Impressão do mapa (MenuBar/Toolbar "Imprimir mapa"): a página inteira já é o mapa em
    tela cheia, então basta ocultar a "casca" do app (menu, toolbar, sidebar, etc. — via
    utilitário print:hidden do Tailwind em cada componente) e configurar a página para A4

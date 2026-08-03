@@ -7,6 +7,7 @@ import { QuadraForm, type QuadraFormData } from './QuadraForm'
 type Props = {
   onClose: () => void
   onAlterado: () => void
+  onSelecionar?: (quadra: Quadra) => void
 }
 
 function payload(form: QuadraFormData) {
@@ -28,7 +29,7 @@ function quadraParaForm(q: Quadra): QuadraFormData {
   return { di: q.di, se: q.se, qu: q.qu, cod: q.cod ?? '', obs: q.obs ?? '', geom: q.geom }
 }
 
-export function QuadrasPanel({ onClose, onAlterado }: Props) {
+export function QuadrasPanel({ onClose, onAlterado, onSelecionar }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
 
@@ -123,7 +124,11 @@ export function QuadrasPanel({ onClose, onAlterado }: Props) {
               ) : (
                 <ul className="divide-y divide-gray-100 rounded border border-gray-100">
                   {quadras.map((q) => (
-                    <li key={q.id} className="flex items-center gap-3 p-3">
+                    <li
+                      key={q.id}
+                      onClick={() => q.geom && onSelecionar?.(q)}
+                      className={`flex items-center gap-3 p-3 ${q.geom && onSelecionar ? 'cursor-pointer hover:bg-navy/5' : ''}`}
+                    >
                       <div className="flex-1">
                         <p className="font-mono text-sm font-semibold text-navy">
                           {q.di}.{q.se}.{q.qu}
@@ -135,7 +140,7 @@ export function QuadrasPanel({ onClose, onAlterado }: Props) {
                         {q.geom ? '✅ georreferenciada' : '— sem polígono'}
                       </span>
                       {podeEditar && (
-                        <div className="flex gap-1">
+                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => setModo(q.id)} className="rounded bg-navy px-2 py-1 text-xs text-white hover:bg-navy/90">
                             ✏️
                           </button>

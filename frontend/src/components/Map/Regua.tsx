@@ -7,10 +7,17 @@ function fmtDist(m: number) {
   return m >= 1000 ? `${(m / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} km` : `${m.toFixed(0)} m`
 }
 
+type Props = {
+  // Contador incrementado externamente (Toolbar/MenuBar "Régua: distância") para iniciar
+  // a medição sem exigir que o usuário clique no botão do mapa — mesmo padrão de ponte já
+  // usado para abrir o formulário de WMS (MainLayout `wmsFormEm`/Ferramentas.tsx).
+  iniciarEm?: number
+}
+
 // Ferramenta de régua (distância em tempo real), equivalente ao startLine/estPerim do
 // protótipo. Usa o próprio handler de linha do leaflet-draw — o tooltip de distância
 // acumulada aparece nativamente durante o desenho (showLength: true).
-export function Regua() {
+export function Regua({ iniciarEm }: Props) {
   const map = useMap()
   const grupoRef = useRef(new L.FeatureGroup())
   const [distancia, setDistancia] = useState<number | null>(null)
@@ -60,6 +67,11 @@ export function Regua() {
       metric: true,
     }).enable()
   }
+
+  useEffect(() => {
+    if (iniciarEm) iniciar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iniciarEm])
 
   function limpar() {
     grupoRef.current.clearLayers()

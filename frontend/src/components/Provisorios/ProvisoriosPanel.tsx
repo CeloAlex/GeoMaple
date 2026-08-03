@@ -8,6 +8,7 @@ import { TIPO_LABEL, STATUS_LABEL, formVazio, provisorioParaForm, type Provisori
 type Props = {
   onClose: () => void
   onAlterado: () => void
+  onSelecionar?: (provisorio: Provisorio) => void
 }
 
 function payload(form: ProvisorioFormData) {
@@ -20,7 +21,7 @@ function payload(form: ProvisorioFormData) {
   }
 }
 
-export function ProvisoriosPanel({ onClose, onAlterado }: Props) {
+export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
 
@@ -115,7 +116,11 @@ export function ProvisoriosPanel({ onClose, onAlterado }: Props) {
               ) : (
                 <ul className="divide-y divide-gray-100 rounded border border-gray-100">
                   {lista.map((p) => (
-                    <li key={p.id} className="flex items-center gap-3 p-3">
+                    <li
+                      key={p.id}
+                      onClick={() => p.geom && onSelecionar?.(p)}
+                      className={`flex items-center gap-3 p-3 ${p.geom && onSelecionar ? 'cursor-pointer hover:bg-navy/5' : ''}`}
+                    >
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-navy">{p.nome}</p>
                         <p className="text-xs text-gray-500">
@@ -126,7 +131,7 @@ export function ProvisoriosPanel({ onClose, onAlterado }: Props) {
                         {p.geom ? '✅ georreferenciada' : '— sem polígono'}
                       </span>
                       {podeEditar && (
-                        <div className="flex gap-1">
+                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => setModo(p.id)} className="rounded bg-navy px-2 py-1 text-xs text-white hover:bg-navy/90">
                             ✏️
                           </button>
