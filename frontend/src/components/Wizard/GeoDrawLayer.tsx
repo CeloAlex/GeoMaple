@@ -70,7 +70,7 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
       layer.sgcimTipo = tipo
       grupoRef.current.addLayer(layer)
       camadasRef.current[tipo] = layer
-      map.fitBounds(layer.getBounds(), { maxZoom: 19 })
+      map.fitBounds(layer.getBounds(), { maxZoom: 21 })
       const geom = layerParaPoligono(layer)
       const area = calcularArea(layer)
       if (tipo === 'terreno') callbacksRef.current.onTerrenoChange(geom, area)
@@ -153,7 +153,7 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
       ;(layer as LayerComTipo).sgcimTipo = 'terreno'
       grupoRef.current.addLayer(layer)
       camadasRef.current.terreno = layer
-      map.fitBounds(layer.getBounds(), { maxZoom: 19 })
+      map.fitBounds(layer.getBounds(), { maxZoom: 21 })
       callbacksRef.current.onTerrenoChange(layerParaPoligono(layer), calcularArea(layer))
     }
   }, [terrenoGeom, map])

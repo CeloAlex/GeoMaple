@@ -1,7 +1,8 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { MapContainer, TileLayer, LayersControl } from 'react-leaflet'
 import { GeoDrawLayer, type GeoDrawHandle } from './GeoDrawLayer'
 import { ColarCoordenadas } from '../Map/ColarCoordenadas'
+import { MapaExpansivel, InvalidateSizeAoMudar } from '../Map/MapaExpansivel'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from '../Map/constants'
 import { useMunicipioStore } from '../../store/municipioStore'
 import type { WizardFormData } from './types'
@@ -21,6 +22,7 @@ type Props = {
 export function Step3Geo({ form, set, herdadoInsc }: Props) {
   const geoRef = useRef<GeoDrawHandle>(null)
   const centro = useMunicipioStore((s) => s.municipio.centro)
+  const [expandido, setExpandido] = useState(false)
 
   return (
     <div className="space-y-3">
@@ -66,7 +68,7 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
         />
       </div>
 
-      <div className="h-80 w-full overflow-hidden rounded border border-gray-300">
+      <MapaExpansivel expandido={expandido} onToggle={() => setExpandido((e) => !e)} alturaNormal="h-80">
         <MapContainer center={[centro.lat, centro.lng]} zoom={18} maxZoom={MAX_ZOOM} className="h-full w-full">
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="Satélite">
@@ -94,8 +96,9 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
             }}
             ref={geoRef}
           />
+          <InvalidateSizeAoMudar watch={expandido} />
         </MapContainer>
-      </div>
+      </MapaExpansivel>
 
       <div className="flex gap-4 text-sm">
         <span className={form.geom ? 'text-verde' : 'text-red-600'}>

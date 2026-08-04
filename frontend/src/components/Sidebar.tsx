@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useMunicipioStore } from '../store/municipioStore'
 import { Busca } from './Sidebar/Busca'
-import { ArvoreCamadas } from './Sidebar/ArvoreCamadas'
+import { ArvoreCadastros } from './Sidebar/ArvoreCadastros'
+import { ArvoreQuadras } from './Sidebar/ArvoreQuadras'
 import { Ferramentas, type DestinoImportacao } from './Sidebar/Ferramentas'
 import type { ImovelFeatureCollection, ImovelRegistro } from '../types/imovel'
 import type { Quadra } from '../types/quadra'
@@ -35,8 +36,10 @@ type Props = {
   onRemoverWms: (id: string) => void
   abrirFormularioWmsEm?: number
   onErro?: (msg: string) => void
-  ramosOcultos: Set<string>
-  onAlternarRamo: (chave: string) => void
+  ramosOcultosCadastros: Set<string>
+  onAlternarRamoCadastros: (chave: string) => void
+  ramosOcultosQuadras: Set<string>
+  onAlternarRamoQuadras: (chave: string) => void
   onEscolherDestinoImportacao?: (camada: CamadaImportada, destino: DestinoImportacao) => void
 }
 
@@ -60,8 +63,10 @@ export function Sidebar({
   onRemoverWms,
   abrirFormularioWmsEm,
   onErro,
-  ramosOcultos,
-  onAlternarRamo,
+  ramosOcultosCadastros,
+  onAlternarRamoCadastros,
+  ramosOcultosQuadras,
+  onAlternarRamoQuadras,
   onEscolherDestinoImportacao,
 }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
@@ -84,19 +89,29 @@ export function Sidebar({
         <Busca onSelecionar={onSelecionarImovel} onBuscarEndereco={onBuscarEndereco} />
       </div>
 
-      {/* Árvore de camadas (Distrito → Setor → Quadra → Imóveis) é o elemento principal
-          da barra lateral, ocupando a maior parte do espaço — estilo Google Earth. Os
-          botões de ação ficam recolhidos por padrão em "Ações", uma área secundária que
-          não compete visualmente com a árvore. */}
-      <div className="flex flex-1 flex-col overflow-y-auto px-4 pt-3 pb-2 text-sm text-white/70">
-        <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Árvore de camadas</p>
-        <ArvoreCamadas
-          onSelecionarImovel={onSelecionarImovel}
-          onSelecionarQuadra={onSelecionarQuadra}
-          recarregarEm={recarregarArvoreEm}
-          ramosOcultos={ramosOcultos}
-          onAlternarRamo={onAlternarRamo}
-        />
+      {/* Duas árvores de camadas independentes (Cadastros Definitivos e Quadras) são o
+          elemento principal da barra lateral, ocupando a maior parte do espaço — estilo
+          Google Earth. Os botões de ação ficam recolhidos por padrão em "Ações", uma área
+          secundária que não compete visualmente com as árvores. */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-y-auto px-4 pt-3 pb-2 text-sm text-white/70">
+          <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Cadastros Definitivos</p>
+          <ArvoreCadastros
+            onSelecionarImovel={onSelecionarImovel}
+            recarregarEm={recarregarArvoreEm}
+            ramosOcultos={ramosOcultosCadastros}
+            onAlternarRamo={onAlternarRamoCadastros}
+          />
+        </div>
+        <div className="flex flex-1 flex-col overflow-y-auto border-t border-white/10 px-4 pt-3 pb-2 text-sm text-white/70">
+          <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Quadras</p>
+          <ArvoreQuadras
+            onSelecionarQuadra={onSelecionarQuadra}
+            recarregarEm={recarregarArvoreEm}
+            ramosOcultos={ramosOcultosQuadras}
+            onAlternarRamo={onAlternarRamoQuadras}
+          />
+        </div>
       </div>
 
       <div className="shrink-0 border-t border-white/10">

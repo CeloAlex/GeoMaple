@@ -2,7 +2,7 @@ import { prisma } from '../db'
 import { AppError } from '../utils/errors'
 import { validarInscricao } from '../utils/inscricao'
 import { CAMPOS_CRIACAO, CAMPOS_EDICAO, validarUsoEStatus } from './imovelService'
-import { lerGeometria, herdarGeometriaDoPai } from './geoService'
+import { lerGeometria } from './geoService'
 import { registrarAuditoria } from './auditService'
 
 // UAs não têm sub-unidades: parentId só é aceito em um terreno raiz (seção 8.4)
@@ -42,7 +42,7 @@ export async function criarUnidade(
   dados: Record<string, unknown>,
   criadoPorId: number,
 ) {
-  const pai = await obterTerrenoPai(parentId)
+  await obterTerrenoPai(parentId)
 
   const insc = dados.insc as string
   if (!insc || !validarInscricao(insc)) {
@@ -63,11 +63,6 @@ export async function criarUnidade(
   }
 
   const ua = await prisma.imovel.create({ data: data as never })
-
-  // Herança automática de geometria: se o terreno pai já está georreferenciado, a UA herda na criação
-  if (pai.at_geo !== null) {
-    await herdarGeometriaDoPai(ua.id, parentId)
-  }
 
   await registrarAuditoria({
     userId: criadoPorId,

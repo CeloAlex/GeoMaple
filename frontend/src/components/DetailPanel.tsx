@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { api } from '../api/client'
-import type { ImovelFeature, ImovelRegistro } from '../types/imovel'
+import type { ImovelRegistro, ImovelSelecionado, PolygonGeoJSON } from '../types/imovel'
 import { useAuthStore } from '../store/authStore'
 import { useMunicipioStore } from '../store/municipioStore'
 import { centroidePoligono } from '../utils/geo'
 import { USO_LABEL, STATUS_LABEL } from '../constants/imovel'
+import { CADURB_TIPO_LABEL, TP_ARQ_LABEL, DEST_LABEL, PADRAO_LABEL } from './Wizard/types'
 import { exportarImovelGeoJSON, exportarImovelKML, imprimirFichaCadastral } from '../utils/exportarImovel'
 import { SinterModal } from './SinterModal'
 import { UAModal } from './UA/UAModal'
@@ -19,27 +20,21 @@ function formatarArea(m2: number) {
   return `${m2.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m²`
 }
 
+function formatarMoeda(v: number) {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 // UAs não têm geometria própria — a ficha reaproveita o polígono do terreno pai.
-function unidadeParaFeature(ua: ImovelRegistro, geometria: ImovelFeature['geometry']): ImovelFeature {
+function unidadeParaFeature(ua: ImovelRegistro, geometria: PolygonGeoJSON): ImovelSelecionado {
   return {
     type: 'Feature',
     geometry: geometria,
-    properties: {
-      id: ua.id,
-      insc: ua.insc,
-      prop: ua.prop,
-      uso: ua.uso,
-      st: ua.st,
-      at_cad: ua.at_cad,
-      at_geo: ua.at_geo,
-      parentId: ua.parentId,
-      cib: ua.cib,
-    },
+    properties: { ...ua, geom: geometria, geom_bld: null },
   }
 }
 
 type Props = {
-  feature: ImovelFeature | null
+  feature: ImovelSelecionado | null
   onClose: () => void
   onAlterado: () => void
 }
@@ -143,6 +138,93 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
           <div>
             <dt className="text-gray-500">Unidade Autônoma</dt>
             <dd className="font-medium text-ua">Vinculada ao imóvel #{imovel.parentId}</dd>
+          </div>
+        )}
+        {(imovel.log || imovel.nr) && (
+          <div>
+            <dt className="text-gray-500">Endereço</dt>
+            <dd className="font-medium text-gray-900">
+              {imovel.log}
+              {imovel.nr ? `, ${imovel.nr}` : ''}
+            </dd>
+          </div>
+        )}
+        {imovel.bai && (
+          <div>
+            <dt className="text-gray-500">Bairro</dt>
+            <dd className="font-medium text-gray-900">{imovel.bai}</dd>
+          </div>
+        )}
+        {imovel.cep && (
+          <div>
+            <dt className="text-gray-500">CEP</dt>
+            <dd className="font-medium text-gray-900">{imovel.cep}</dd>
+          </div>
+        )}
+        {imovel.tp && (
+          <div>
+            <dt className="text-gray-500">Tipo</dt>
+            <dd className="font-medium text-gray-900">{imovel.tp}</dd>
+          </div>
+        )}
+        {(imovel.ac_cad != null || imovel.ac_geo != null) && (
+          <div>
+            <dt className="text-gray-500">Área construída {imovel.ac_geo != null ? 'georreferenciada' : 'cadastral'}</dt>
+            <dd className="font-medium text-gray-900">{formatarArea((imovel.ac_geo ?? imovel.ac_cad)!)}</dd>
+          </div>
+        )}
+        {imovel.num_pav != null && (
+          <div>
+            <dt className="text-gray-500">Nº de pavimentos</dt>
+            <dd className="font-medium text-gray-900">{imovel.num_pav}</dd>
+          </div>
+        )}
+        {imovel.frac_ideal && (
+          <div>
+            <dt className="text-gray-500">Fração ideal</dt>
+            <dd className="font-medium text-gray-900">{imovel.frac_ideal}</dd>
+          </div>
+        )}
+        {imovel.cadurb_tipo != null && (
+          <div>
+            <dt className="text-gray-500">Tipo imóvel CADURB</dt>
+            <dd className="font-medium text-gray-900">{CADURB_TIPO_LABEL[String(imovel.cadurb_tipo)] ?? imovel.cadurb_tipo}</dd>
+          </div>
+        )}
+        {imovel.tp_arq != null && (
+          <div>
+            <dt className="text-gray-500">Tipo arquitetônico</dt>
+            <dd className="font-medium text-gray-900">{TP_ARQ_LABEL[String(imovel.tp_arq)] ?? imovel.tp_arq}</dd>
+          </div>
+        )}
+        {imovel.dest != null && (
+          <div>
+            <dt className="text-gray-500">Destinação</dt>
+            <dd className="font-medium text-gray-900">{DEST_LABEL[String(imovel.dest)] ?? imovel.dest}</dd>
+          </div>
+        )}
+        {imovel.padrao != null && (
+          <div>
+            <dt className="text-gray-500">Padrão construtivo</dt>
+            <dd className="font-medium text-gray-900">{PADRAO_LABEL[String(imovel.padrao)] ?? imovel.padrao}</dd>
+          </div>
+        )}
+        {imovel.ano_constr != null && (
+          <div>
+            <dt className="text-gray-500">Ano de construção</dt>
+            <dd className="font-medium text-gray-900">{imovel.ano_constr}</dd>
+          </div>
+        )}
+        {imovel.valor_venal != null && (
+          <div>
+            <dt className="text-gray-500">Valor venal</dt>
+            <dd className="font-medium text-gray-900">{formatarMoeda(imovel.valor_venal)}</dd>
+          </div>
+        )}
+        {imovel.obs && (
+          <div>
+            <dt className="text-gray-500">Observações</dt>
+            <dd className="font-medium whitespace-pre-wrap text-gray-900">{imovel.obs}</dd>
           </div>
         )}
       </dl>

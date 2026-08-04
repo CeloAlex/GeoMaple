@@ -65,9 +65,20 @@ export type ImovelRegistro = {
   valor_venal: number | null
 }
 
-export type ImovelGeometria = {
-  at_geo: number | null
-  ac_geo: number | null
+// GET /api/imoveis/:id/geometria retorna, na prática, todos os campos do imóvel (o
+// backend faz `{ ...imovel, ...geometria }`) — não só os 4 campos geométricos. O tipo
+// reflete isso para permitir montar o imóvel selecionado (DetailPanel/ficha) com um único
+// fetch, sem precisar de uma segunda chamada a GET /api/imoveis/:id.
+export type ImovelGeometria = ImovelRegistro & {
   geom: PolygonGeoJSON | null
   geom_bld: PolygonGeoJSON | null
+}
+
+// Imóvel selecionado no mapa (clique no polígono ou na árvore/busca) — sempre com o
+// registro completo, ao contrário de ImovelFeature (campos reduzidos vindos do bbox do
+// mapa, usados só para estilizar/clicar os polígonos da camada de Imóveis).
+export type ImovelSelecionado = {
+  type: 'Feature'
+  geometry: PolygonGeoJSON
+  properties: ImovelGeometria
 }

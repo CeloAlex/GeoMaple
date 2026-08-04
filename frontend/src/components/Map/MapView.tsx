@@ -294,7 +294,10 @@ type Props = {
   onWmsErro?: (nomeCamada: string) => void
   medirDistanciaEm?: number
   medirAreaEm?: number
-  ramosOcultos?: Set<string>
+  // Independentes: uma árvore controla a camada de Cadastros (imóveis), a outra a de
+  // Quadras (Sidebar/ArvoreCadastros.tsx e ArvoreQuadras.tsx) — ver MainLayout.tsx.
+  ramosOcultosCadastros?: Set<string>
+  ramosOcultosQuadras?: Set<string>
 }
 
 export function MapView({
@@ -311,7 +314,8 @@ export function MapView({
   onWmsErro,
   medirDistanciaEm,
   medirAreaEm,
-  ramosOcultos,
+  ramosOcultosCadastros,
+  ramosOcultosQuadras,
 }: Props) {
   const [dados, setDados] = useState<ImovelFeatureCollection>(VAZIO)
   const centro = useMunicipioStore((s) => s.municipio.centro)
@@ -330,12 +334,12 @@ export function MapView({
     return { color: '#2980b9', weight: 2, fillColor: '#2980b9', fillOpacity: 0.25 }
   }
 
-  const imoveisVisiveisPorRamo = ramosOcultos
+  const imoveisVisiveisPorRamo = ramosOcultosCadastros
     ? {
         ...dados,
         features: dados.features.filter((f) => {
           const partes = parseInscricao(f.properties.insc)
-          return !partes || !ramoOculto(ramosOcultos, partes.di, partes.se, partes.qu)
+          return !partes || !ramoOculto(ramosOcultosCadastros, partes.di, partes.se, partes.qu)
         }),
       }
     : dados
@@ -365,7 +369,7 @@ export function MapView({
           />
         </LayersControl.BaseLayer>
         <LayersControl.Overlay checked name="Quadras georreferenciadas">
-          <CamadaQuadras recarregarEm={recarregarEm} selecionadaId={quadraSelecionadaId} ramosOcultos={ramosOcultos} />
+          <CamadaQuadras recarregarEm={recarregarEm} selecionadaId={quadraSelecionadaId} ramosOcultos={ramosOcultosQuadras} />
         </LayersControl.Overlay>
         <LayersControl.Overlay checked name="Delimitações provisórias">
           <CamadaProvisorios recarregarEm={recarregarEm} selecionadoId={provisorioSelecionadoId} />

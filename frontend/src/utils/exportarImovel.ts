@@ -1,5 +1,6 @@
-import type { ImovelFeature } from '../types/imovel'
+import type { ImovelFeature, ImovelSelecionado } from '../types/imovel'
 import { USO_LABEL, STATUS_LABEL } from '../constants/imovel'
+import { CADURB_TIPO_LABEL, TP_ARQ_LABEL, DEST_LABEL, PADRAO_LABEL } from '../components/Wizard/types'
 import { baixarArquivo, poligonoParaKML } from './download'
 import { mosaicoSatelite } from './fichaMapa'
 
@@ -13,10 +14,33 @@ export function exportarImovelKML(feature: ImovelFeature) {
   baixarArquivo(`${feature.properties.insc}.kml`, kml, 'application/vnd.google-earth.kml+xml')
 }
 
-export function imprimirFichaCadastral(feature: ImovelFeature, municipioNome: string, municipioUf: string) {
+export function imprimirFichaCadastral(feature: ImovelSelecionado, municipioNome: string, municipioUf: string) {
   const im = feature.properties
   const area = im.at_geo ?? im.at_cad
+  const acArea = im.ac_geo ?? im.ac_cad
   const mapa = mosaicoSatelite(feature.geometry.coordinates[0])
+
+  // Todos os campos cadastrados, além do resumo (proprietário/uso/status/área/CIB) já
+  // exibido acima — mesmo conjunto de campos extras mostrado em DetailPanel.tsx.
+  const linhasExtras: [string, string][] = []
+  if (im.log || im.nr) linhasExtras.push(['Endereço', `${im.log ?? ''}${im.nr ? ', ' + im.nr : ''}`])
+  if (im.bai) linhasExtras.push(['Bairro', im.bai])
+  if (im.cep) linhasExtras.push(['CEP', im.cep])
+  if (im.tp) linhasExtras.push(['Tipo', im.tp])
+  if (acArea != null) linhasExtras.push([`Área construída ${im.ac_geo != null ? 'georreferenciada' : 'cadastral'}`, acArea.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²'])
+  if (im.num_pav != null) linhasExtras.push(['Nº de pavimentos', String(im.num_pav)])
+  if (im.frac_ideal) linhasExtras.push(['Fração ideal', im.frac_ideal])
+  if (im.cadurb_tipo != null) linhasExtras.push(['Tipo imóvel CADURB', CADURB_TIPO_LABEL[String(im.cadurb_tipo)] ?? String(im.cadurb_tipo)])
+  if (im.tp_arq != null) linhasExtras.push(['Tipo arquitetônico', TP_ARQ_LABEL[String(im.tp_arq)] ?? String(im.tp_arq)])
+  if (im.dest != null) linhasExtras.push(['Destinação', DEST_LABEL[String(im.dest)] ?? String(im.dest)])
+  if (im.padrao != null) linhasExtras.push(['Padrão construtivo', PADRAO_LABEL[String(im.padrao)] ?? String(im.padrao)])
+  if (im.ano_constr != null) linhasExtras.push(['Ano de construção', String(im.ano_constr)])
+  if (im.valor_venal != null) linhasExtras.push(['Valor venal', im.valor_venal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })])
+  if (im.obs) linhasExtras.push(['Observações', im.obs])
+  const linhasExtrasHtml = linhasExtras
+    .map(([label, valor]) => `<tr><td class="label">${label}</td><td>${valor}</td></tr>`)
+    .join('\n')
+
   const janela = window.open('', '_blank', 'width=800,height=900')
   if (!janela) return
 
@@ -43,40 +67,62 @@ export function imprimirFichaCadastral(feature: ImovelFeature, municipioNome: st
     <tr><td class="label">Área ${im.at_geo != null ? 'georreferenciada' : 'cadastral'}</td>
         <td>${area != null ? area.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²' : '—'}</td></tr>
     ${im.cib ? `<tr><td class="label">CIB</td><td>${im.cib}</td></tr>` : ''}
+    ${linhasExtrasHtml}
   </table>
   <p id="aviso-tiles" class="rodape" style="display:none;color:#b45309"></p>
   <p class="rodape">Documento gerado automaticamente pelo GeoMaple · SGCIM. Sem validade jurídica sem assinatura/carimbo oficial.</p>
   <script>
-    window.onload = () => {
+    window.onload = async () => {
       let jaImprimiu = false
       let falhas = 0
-      const imprimir = () => {
+
+      function avisarSeHouveFalha() {
+        if (falhas === 0) return
+        console.warn('Ficha cadastral: ' + falhas + ' tile(s) de satélite não carregaram corretamente.')
+        const aviso = document.getElementById('aviso-tiles')
+        if (aviso) {
+          aviso.textContent = '⚠ Algumas imagens de fundo (satélite) podem não ter carregado — verifique a conexão e reimprima se necessário.'
+          aviso.style.display = 'block'
+        }
+      }
+
+      // decode() garante que os pixels já foram decodificados (não só que os bytes
+      // chegaram, como o evento 'load' garantiria) — depois disso, esperar dois frames de
+      // requestAnimationFrame garante que o compositor já pintou pelo menos um frame
+      // completo antes do print, evitando capturar um estado incompleto (o gargalo real
+      // por trás da ficha às vezes imprimir sem a imagem de fundo).
+      function prontoParaImprimir() {
+        return new Promise((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        })
+      }
+
+      const imprimir = async () => {
         if (jaImprimiu) return
         jaImprimiu = true
-        if (falhas > 0) {
-          console.warn('Ficha cadastral: ' + falhas + ' tile(s) de satélite não carregaram a tempo.')
-          const aviso = document.getElementById('aviso-tiles')
-          if (aviso) {
-            aviso.textContent = '⚠ Algumas imagens de fundo (satélite) podem não ter carregado — verifique a conexão e reimprima se necessário.'
-            aviso.style.display = 'block'
-          }
-        }
-        setTimeout(() => window.print(), 200)
+        avisarSeHouveFalha()
+        await prontoParaImprimir()
+        window.print()
       }
-      const imgs = Array.from(document.querySelectorAll('.mosaico img'))
-      let pendentes = imgs.length
-      if (pendentes === 0) { imprimir(); return }
-      const pronto = () => { if (--pendentes <= 0) imprimir() }
-      imgs.forEach((img) => {
-        if (img.complete) pronto()
-        else {
-          img.addEventListener('load', pronto)
-          img.addEventListener('error', () => { falhas++; pronto() })
-        }
-      })
+
       // Salvaguarda: imprime mesmo se algum tile nunca responder (Esri é um serviço
       // público, sem SLA — 12s dá margem para conexões mais lentas antes de desistir).
-      setTimeout(imprimir, 12000)
+      const salvaguarda = setTimeout(imprimir, 12000)
+
+      const imgs = Array.from(document.querySelectorAll('.mosaico img'))
+      await Promise.all(
+        imgs.map((img) =>
+          img.decode
+            ? img.decode().catch(() => { falhas++ })
+            : new Promise((resolve) => {
+                if (img.complete) return resolve()
+                img.addEventListener('load', resolve)
+                img.addEventListener('error', () => { falhas++; resolve() })
+              })
+        )
+      )
+      clearTimeout(salvaguarda)
+      imprimir()
     }
   </script>
 </body></html>`)

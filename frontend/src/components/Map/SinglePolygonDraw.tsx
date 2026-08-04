@@ -55,7 +55,7 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
       const layer = L.polygon(pontos, estiloRef.current)
       grupoRef.current.addLayer(layer)
       camadaRef.current = layer
-      map.fitBounds(layer.getBounds(), { maxZoom: 19 })
+      map.fitBounds(layer.getBounds(), { maxZoom: 21 })
       onChangeRef.current(layerParaPoligono(layer), calcularArea(layer))
     },
   }))
@@ -110,13 +110,18 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
     }
   }, [map])
 
-  // Pré-carrega geometria existente uma única vez — não reage a edições do usuário
+  // Pré-carrega geometria existente uma única vez — não reage a edições do usuário.
+  // Chama onChangeRef aqui (como GeoDrawLayer.tsx já fazia) para sanitizar a geometria
+  // via round-trip do Leaflet — remove coordenada Z (altitude de KML importado) e fecha o
+  // anel com precisão antes de qualquer submissão; sem isso, uma geometria importada com Z
+  // ia direto pro backend e quebrava o ST_GeomFromGeoJSON (coluna 2D), causando erro 500.
   useEffect(() => {
     if (geom && !camadaRef.current) {
       const layer = L.polygon(poligonoParaLatLngs(geom), estiloRef.current)
       grupoRef.current.addLayer(layer)
       camadaRef.current = layer
-      map.fitBounds(layer.getBounds(), { maxZoom: 19 })
+      map.fitBounds(layer.getBounds(), { maxZoom: 21 })
+      onChangeRef.current(layerParaPoligono(layer), calcularArea(layer))
     }
   }, [geom, map])
 

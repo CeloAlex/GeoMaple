@@ -17,7 +17,14 @@ import { api } from '../api/client'
 import { centroidePoligono } from '../utils/geo'
 import { exportarImovelGeoJSON, exportarImovelKML } from '../utils/exportarImovel'
 import { useMunicipioStore } from '../store/municipioStore'
-import type { ImovelFeature, ImovelFeatureCollection, ImovelGeometria, ImovelRegistro, PolygonGeoJSON } from '../types/imovel'
+import type {
+  ImovelFeature,
+  ImovelFeatureCollection,
+  ImovelGeometria,
+  ImovelRegistro,
+  ImovelSelecionado,
+  PolygonGeoJSON,
+} from '../types/imovel'
 import type { CamadaImportada } from '../utils/importarGeo'
 import type { Quadra } from '../types/quadra'
 import type { Provisorio } from '../types/provisorio'
@@ -26,7 +33,7 @@ const SEM_IMOVEIS: ImovelFeatureCollection = { type: 'FeatureCollection', featur
 
 export function MainLayout() {
   const municipio = useMunicipioStore((s) => s.municipio)
-  const [selecionado, setSelecionado] = useState<ImovelFeature | null>(null)
+  const [selecionado, setSelecionado] = useState<ImovelSelecionado | null>(null)
   const [wizardAberto, setWizardAberto] = useState(false)
   const [quadrasAberto, setQuadrasAberto] = useState(false)
   const [provisoriosAberto, setProvisoriosAberto] = useState(false)
@@ -50,12 +57,15 @@ export function MainLayout() {
   const [provisorioSelecionadoId, setProvisorioSelecionadoId] = useState<number | null>(null)
   const [medirDistanciaEm, setMedirDistanciaEm] = useState(0)
   const [medirAreaEm, setMedirAreaEm] = useState(0)
-  const [ramosOcultos, setRamosOcultos] = useState<Set<string>>(new Set())
+  // Árvores independentes (Cadastros e Quadras) — cada uma controla sua própria camada no
+  // mapa, sem afetar a outra.
+  const [ramosOcultosCadastros, setRamosOcultosCadastros] = useState<Set<string>>(new Set())
+  const [ramosOcultosQuadras, setRamosOcultosQuadras] = useState<Set<string>>(new Set())
   const [geomInicialQuadra, setGeomInicialQuadra] = useState<PolygonGeoJSON | null>(null)
   const [geomInicialProvisorio, setGeomInicialProvisorio] = useState<PolygonGeoJSON | null>(null)
 
-  function alternarRamo(chave: string) {
-    setRamosOcultos((atual) => {
+  function alternarRamo(setRamos: (atualizar: (atual: Set<string>) => Set<string>) => void, chave: string) {
+    setRamos((atual) => {
       const proximo = new Set(atual)
       if (proximo.has(chave)) proximo.delete(chave)
       else proximo.add(chave)
@@ -74,34 +84,25 @@ export function MainLayout() {
     mostrarAviso(`📍 ${rotulo}`)
   }
 
-  async function selecionarImovel(imovel: ImovelRegistro) {
+  // Único caminho de seleção (clique no polígono do mapa ou na árvore/busca) — sempre
+  // busca o registro completo, para que DetailPanel/ficha mostrem todos os campos
+  // cadastrados, não só o subconjunto reduzido que a camada do mapa usa para estilizar.
+  async function selecionarImovelPorId(id: number) {
     try {
-      const { data: geometria } = await api.get<ImovelGeometria>(`/api/imoveis/${imovel.id}/geometria`)
+      const { data: geometria } = await api.get<ImovelGeometria>(`/api/imoveis/${id}/geometria`)
       if (!geometria.geom) {
-        mostrarAviso(`${imovel.insc} ainda não tem polígono georreferenciado.`)
+        mostrarAviso(`${geometria.insc} ainda não tem polígono georreferenciado.`)
         return
       }
-
-      const feature: ImovelFeature = {
-        type: 'Feature',
-        geometry: geometria.geom,
-        properties: {
-          id: imovel.id,
-          insc: imovel.insc,
-          prop: imovel.prop,
-          uso: imovel.uso,
-          st: imovel.st,
-          at_cad: imovel.at_cad,
-          at_geo: geometria.at_geo,
-          parentId: imovel.parentId,
-          cib: imovel.cib,
-        },
-      }
-      setSelecionado(feature)
+      setSelecionado({ type: 'Feature', geometry: geometria.geom, properties: geometria })
       setVoarPara(centroidePoligono(geometria.geom))
     } catch {
       mostrarAviso('Não foi possível carregar este imóvel.')
     }
+  }
+
+  function selecionarImovel(imovel: ImovelRegistro) {
+    selecionarImovelPorId(imovel.id)
   }
 
   function selecionarQuadra(quadra: Quadra) {
@@ -230,15 +231,17 @@ export function MainLayout() {
             onRemoverWms={(id) => setCamadasWms((cs) => cs.filter((c) => c.id !== id))}
             abrirFormularioWmsEm={wmsFormEm}
             onErro={mostrarAviso}
-            ramosOcultos={ramosOcultos}
-            onAlternarRamo={alternarRamo}
+            ramosOcultosCadastros={ramosOcultosCadastros}
+            onAlternarRamoCadastros={(chave) => alternarRamo(setRamosOcultosCadastros, chave)}
+            ramosOcultosQuadras={ramosOcultosQuadras}
+            onAlternarRamoQuadras={(chave) => alternarRamo(setRamosOcultosQuadras, chave)}
             onEscolherDestinoImportacao={escolherDestinoImportacao}
           />
         )}
         <main className="relative flex-1">
           <MapView
             selecionadoId={selecionado?.properties.id ?? null}
-            onSelect={(feature: ImovelFeature) => setSelecionado(feature)}
+            onSelect={(feature: ImovelFeature) => selecionarImovelPorId(feature.properties.id)}
             recarregarEm={recarregarEm}
             voarPara={voarPara}
             onDadosCarregados={setImoveisVisiveis}
@@ -250,7 +253,8 @@ export function MainLayout() {
             onWmsErro={(nome) => mostrarAviso(`⚠️ Camada WMS "${nome}" não retornou imagem — verifique nome técnico/URL/versão do serviço.`)}
             medirDistanciaEm={medirDistanciaEm}
             medirAreaEm={medirAreaEm}
-            ramosOcultos={ramosOcultos}
+            ramosOcultosCadastros={ramosOcultosCadastros}
+            ramosOcultosQuadras={ramosOcultosQuadras}
           />
           <DetailPanel
             feature={selecionado}

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { MapContainer, TileLayer, LayersControl } from 'react-leaflet'
 import { SinglePolygonDraw, type SinglePolygonHandle } from '../Map/SinglePolygonDraw'
 import { ColarCoordenadas } from '../Map/ColarCoordenadas'
+import { MapaExpansivel, InvalidateSizeAoMudar } from '../Map/MapaExpansivel'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from '../Map/constants'
 import { useMunicipioStore } from '../../store/municipioStore'
 import { TIPO_LABEL, STATUS_LABEL, type ProvisorioFormData } from './types'
@@ -28,6 +29,7 @@ export function ProvisorioForm({ titulo, inicial, onSalvar, onCancelar }: Props)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const drawRef = useRef<SinglePolygonHandle>(null)
+  const [expandido, setExpandido] = useState(false)
 
   function set<K extends keyof ProvisorioFormData>(campo: K, valor: ProvisorioFormData[K]) {
     setForm((f) => ({ ...f, [campo]: valor }))
@@ -124,7 +126,7 @@ export function ProvisorioForm({ titulo, inicial, onSalvar, onCancelar }: Props)
           </button>
           <ColarCoordenadas onAplicar={(pontos) => drawRef.current?.criarDePontos(pontos)} />
         </div>
-        <div className="h-64 w-full overflow-hidden rounded border border-gray-300">
+        <MapaExpansivel expandido={expandido} onToggle={() => setExpandido((e) => !e)} alturaNormal="h-64">
           <MapContainer center={[centro.lat, centro.lng]} zoom={16} maxZoom={MAX_ZOOM} className="h-full w-full">
             <LayersControl position="topright">
               <LayersControl.BaseLayer checked name="Satélite">
@@ -143,8 +145,9 @@ export function ProvisorioForm({ titulo, inicial, onSalvar, onCancelar }: Props)
               }}
               ref={drawRef}
             />
+            <InvalidateSizeAoMudar watch={expandido} />
           </MapContainer>
-        </div>
+        </MapaExpansivel>
         <p className="mt-1 text-xs text-gray-500">
           {form.geom ? `✅ ${fmtArea(area ?? 0)}` : 'Nenhum polígono desenhado ainda (opcional)'}
         </p>

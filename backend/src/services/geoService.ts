@@ -21,10 +21,22 @@ export async function lerGeometria(id: number) {
   }
 }
 
-export async function obterGeometria(id: number) {
+// Unidades Autônomas nunca têm geometria própria — terreno e edificação são únicos por
+// lote, compartilhados por todas as UAs vinculadas. Resolve sempre para a linha do
+// terreno (parentId ?? id) antes de ler/gravar, para que editar a partir de QUALQUER UA
+// opere sobre a mesma geometria do lote, sem criar cópias divergentes.
+async function resolverIdTerreno(id: number) {
   const imovel = await prisma.imovel.findUnique({ where: { id } })
   if (!imovel) throw new AppError(404, 'Imóvel não encontrado')
-  return { ...imovel, ...(await lerGeometria(id)) }
+  if (imovel.parentId === null) return { imovel, idTerreno: id }
+  const terreno = await prisma.imovel.findUnique({ where: { id: imovel.parentId } })
+  if (!terreno) throw new AppError(404, 'Imóvel não encontrado')
+  return { imovel: terreno, idTerreno: imovel.parentId }
+}
+
+export async function obterGeometria(id: number) {
+  const { imovel, idTerreno } = await resolverIdTerreno(id)
+  return { ...imovel, ...(await lerGeometria(idTerreno)) }
 }
 
 export async function atualizarGeometria(
@@ -32,8 +44,7 @@ export async function atualizarGeometria(
   dados: { geom?: unknown; geom_bld?: unknown },
   solicitante: { id: number },
 ) {
-  const imovel = await prisma.imovel.findUnique({ where: { id } })
-  if (!imovel) throw new AppError(404, 'Imóvel não encontrado')
+  const { imovel, idTerreno } = await resolverIdTerreno(id)
 
   if (dados.geom === undefined && dados.geom_bld === undefined) {
     throw new AppError(400, 'Informe geom e/ou geom_bld como GeoJSON Polygon')
@@ -45,7 +56,7 @@ export async function atualizarGeometria(
     throw new AppError(400, 'geom_bld deve ser um GeoJSON Polygon válido (anel fechado, SRID 4326)')
   }
 
-  const antes = await lerGeometria(id)
+  const antes = await lerGeometria(idTerreno)
 
   await prisma.$transaction(async (tx) => {
     if (dados.geom !== undefined) {
@@ -55,14 +66,7 @@ export async function atualizarGeometria(
         SET geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326),
             at_geo = ST_Area(ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326)::geography),
             geo_dt = now()
-        WHERE id = ${id}
-      `
-      // Propaga geometria e área do terreno para Unidades Autônomas filhas (seção 8.3/8.4)
-      await tx.$executeRaw`
-        UPDATE "Imovel" AS filho
-        SET geom = pai.geom, at_geo = pai.at_geo, geo_dt = pai.geo_dt
-        FROM "Imovel" AS pai
-        WHERE pai.id = ${id} AND filho."parentId" = ${id} AND filho.ativo = true
+        WHERE id = ${idTerreno}
       `
     }
 
@@ -72,7 +76,7 @@ export async function atualizarGeometria(
         UPDATE "Imovel"
         SET geom_bld = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonBld}), 4326),
             ac_geo = ST_Area(ST_SetSRID(ST_GeomFromGeoJSON(${geojsonBld}), 4326)::geography)
-        WHERE id = ${id}
+        WHERE id = ${idTerreno}
       `
     }
   })
@@ -81,7 +85,7 @@ export async function atualizarGeometria(
     await registrarAuditoria({
       userId: solicitante.id,
       acao: antes?.geom ? 'IMOVEL_GEOMETRIA_EDITADA' : 'IMOVEL_GEOMETRIA_ADICIONADA',
-      entidade: `Imovel:${id}`,
+      entidade: `Imovel:${idTerreno}`,
       detalhe: { insc: imovel.insc, vertices: (dados.geom as PolygonGeoJSON).coordinates[0].length },
     })
   }
@@ -89,22 +93,12 @@ export async function atualizarGeometria(
     await registrarAuditoria({
       userId: solicitante.id,
       acao: antes?.geom_bld ? 'IMOVEL_EDIFICACAO_EDITADA' : 'IMOVEL_EDIFICACAO_ADICIONADA',
-      entidade: `Imovel:${id}`,
+      entidade: `Imovel:${idTerreno}`,
       detalhe: { insc: imovel.insc, vertices: (dados.geom_bld as PolygonGeoJSON).coordinates[0].length },
     })
   }
 
-  return obterGeometria(id)
-}
-
-// Copia geom/at_geo do terreno pai para uma Unidade Autônoma recém-criada (seção 8.3/8.4)
-export async function herdarGeometriaDoPai(filhoId: number, paiId: number) {
-  await prisma.$executeRaw`
-    UPDATE "Imovel" AS filho
-    SET geom = pai.geom, at_geo = pai.at_geo, geo_dt = pai.geo_dt
-    FROM "Imovel" AS pai
-    WHERE pai.id = ${paiId} AND filho.id = ${filhoId}
-  `
+  return obterGeometria(idTerreno)
 }
 
 function parseBbox(bbox: unknown) {
