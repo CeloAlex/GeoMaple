@@ -30,8 +30,8 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
         </p>
       )}
       <p className="text-sm text-gray-600">
-        Clique nos vértices para delimitar o terreno; clique no primeiro ponto (ou dê duplo-clique) para fechar o
-        polígono. A edificação é opcional.
+        Clique nos vértices para delimitar o terreno; dê duplo-clique no último ponto ou use o botão "Concluir
+        polígono" para fechar. A edificação é opcional.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -48,6 +48,13 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
           className="rounded border border-red-500 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
         >
           ✏️ Desenhar edificação (opcional)
+        </button>
+        <button
+          type="button"
+          onClick={() => geoRef.current?.finalizarDesenho()}
+          className="rounded border border-verde px-3 py-1.5 text-xs font-medium text-verde hover:bg-verde/10"
+        >
+          ✅ Concluir polígono
         </button>
         <ColarCoordenadas
           rotulo="📋 Colar coordenadas do terreno"

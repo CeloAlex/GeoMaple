@@ -20,6 +20,13 @@ export function parseInscricao(insc: string) {
   return { di, se, qu, lote, unidade, lotePrefixo: `${di}.${se}.${qu}.${lote}` }
 }
 
+// Verifica se um distrito/setor/quadra está oculto pela árvore de camadas (Sidebar/
+// ArvoreCamadas.tsx) — chaves no formato "di", "di.se" ou "di.se.qu", ocultar um nível
+// superior implicitamente oculta todos os seus filhos.
+export function ramoOculto(ramosOcultos: Set<string>, di: string, se: string, qu: string): boolean {
+  return ramosOcultos.has(di) || ramosOcultos.has(`${di}.${se}`) || ramosOcultos.has(`${di}.${se}.${qu}`)
+}
+
 // Sugere a próxima unidade (UUU) livre dentro do mesmo lote, evitando colidir com o
 // terreno pai e as UAs já cadastradas — mesma lógica do v10_newUA do protótipo.
 export function sugerirProximaUnidade(inscPai: string, unidadesExistentes: string[]): string {

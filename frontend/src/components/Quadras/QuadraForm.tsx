@@ -121,6 +121,13 @@ export function QuadraForm({ titulo, inicial, onSalvar, onCancelar }: Props) {
           >
             ✏️ Desenhar polígono da quadra
           </button>
+          <button
+            type="button"
+            onClick={() => drawRef.current?.finalizarDesenho()}
+            className="rounded border border-verde px-3 py-1.5 text-xs font-medium text-verde hover:bg-verde/10"
+          >
+            ✅ Concluir polígono
+          </button>
           <ColarCoordenadas onAplicar={(pontos) => drawRef.current?.criarDePontos(pontos)} />
         </div>
         <div className="h-64 w-full overflow-hidden rounded border border-gray-300">

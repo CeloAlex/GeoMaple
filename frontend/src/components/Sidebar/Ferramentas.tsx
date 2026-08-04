@@ -3,7 +3,10 @@ import type { ImovelFeatureCollection } from '../../types/imovel'
 import type { CamadaImportada } from '../../utils/importarGeo'
 import { importarArquivo } from '../../utils/importarGeo'
 import { baixarArquivo, linhasParaCSV } from '../../utils/download'
+import { baseUrlWms } from '../../utils/wms'
 import type { CamadaWms } from '../Map/MapView'
+
+export type DestinoImportacao = 'cadastro' | 'provisorio' | 'quadra'
 
 type Props = {
   imoveisVisiveis: ImovelFeatureCollection
@@ -15,6 +18,15 @@ type Props = {
   onRemoverWms: (id: string) => void
   abrirFormularioEm?: number
   onErro?: (msg: string) => void
+  // Ao importar um arquivo com pelo menos um polígono, pergunta o destino (cadastro,
+  // provisório ou quadra) — a geometria substitui a etapa de desenho manual na tela
+  // correspondente. Sem essa prop (ou se o usuário escolher "só visualizar"), cai no
+  // comportamento padrão de camada de referência via onImportar.
+  onEscolherDestinoImportacao?: (camada: CamadaImportada, destino: DestinoImportacao) => void
+}
+
+function primeiroPoligono(camada: CamadaImportada) {
+  return camada.geojson.features.find((f) => f.geometry?.type === 'Polygon')
 }
 
 function exportarCSV(fc: ImovelFeatureCollection) {
@@ -42,9 +54,11 @@ export function Ferramentas({
   onRemoverWms,
   abrirFormularioEm,
   onErro,
+  onEscolherDestinoImportacao,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [wmsAberto, setWmsAberto] = useState(false)
+  const [camadaPendente, setCamadaPendente] = useState<CamadaImportada | null>(null)
 
   useEffect(() => {
     if (abrirFormularioEm) setWmsAberto(true)
@@ -61,13 +75,29 @@ export function Ferramentas({
     try {
       const camada = await importarArquivo(arquivo)
       if (camada.geojson.features.length === 0) {
-        onErro?.(`Não foi possível extrair feições de "${arquivo.name}" — verifique se é um KML/GeoJSON válido.`)
+        onErro?.(`Não foi possível extrair feições de "${arquivo.name}" — verifique se é um KML/KMZ/GeoJSON/Shapefile válido.`)
+        return
+      }
+      if (onEscolherDestinoImportacao && primeiroPoligono(camada)) {
+        setCamadaPendente(camada)
         return
       }
       onImportar(camada)
     } catch {
-      onErro?.(`Falha ao importar "${arquivo.name}" — verifique se é um KML/GeoJSON válido.`)
+      onErro?.(`Falha ao importar "${arquivo.name}" — verifique se é um KML/KMZ/GeoJSON/Shapefile válido.`)
     }
+  }
+
+  function escolherDestino(destino: DestinoImportacao) {
+    if (!camadaPendente) return
+    onEscolherDestinoImportacao?.(camadaPendente, destino)
+    setCamadaPendente(null)
+  }
+
+  function visualizarComoReferencia() {
+    if (!camadaPendente) return
+    onImportar(camadaPendente)
+    setCamadaPendente(null)
   }
 
   function adicionarWms() {
@@ -75,7 +105,7 @@ export function Ferramentas({
     onAdicionarWms({
       id: crypto.randomUUID(),
       nome: wmsNome.trim() || wmsLayers.trim(),
-      url: wmsUrl.trim(),
+      url: baseUrlWms(wmsUrl.trim()),
       layers: wmsLayers.trim(),
       version: wmsVersion,
     })
@@ -96,13 +126,50 @@ export function Ferramentas({
         ⬇️ Exportar CSV ({imoveisVisiveis.features.length} visíveis)
       </button>
 
-      <input ref={inputRef} type="file" accept=".geojson,.json,.kml" className="hidden" onChange={handleArquivo} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".geojson,.json,.kml,.kmz,.zip,.shp"
+        className="hidden"
+        onChange={handleArquivo}
+      />
       <button
         onClick={() => inputRef.current?.click()}
         className="w-full rounded border border-white/20 py-1.5 text-xs text-white/80 hover:bg-white/10"
       >
-        📥 Importar KML/GeoJSON
+        📥 Importar KML/KMZ/GeoJSON/Shapefile
       </button>
+
+      {camadaPendente && (
+        <div className="space-y-1.5 rounded border border-white/10 bg-white/5 p-2 text-[11px] text-white/80">
+          <p>
+            "{camadaPendente.nome}" importado. Para onde deseja levar o polígono?
+          </p>
+          <div className="grid grid-cols-1 gap-1">
+            <button
+              onClick={() => escolherDestino('cadastro')}
+              className="rounded bg-verde/80 px-2 py-1 text-left hover:bg-verde"
+            >
+              🏠 Cadastro Definitivo
+            </button>
+            <button
+              onClick={() => escolherDestino('provisorio')}
+              className="rounded bg-orange-600/80 px-2 py-1 text-left hover:bg-orange-600"
+            >
+              🚧 Delimitação Provisória
+            </button>
+            <button
+              onClick={() => escolherDestino('quadra')}
+              className="rounded bg-ambar/80 px-2 py-1 text-left hover:bg-ambar"
+            >
+              🗺️ Quadra
+            </button>
+            <button onClick={visualizarComoReferencia} className="rounded border border-white/20 px-2 py-1 text-left hover:bg-white/10">
+              👁️ Só visualizar como referência
+            </button>
+          </div>
+        </div>
+      )}
 
       {camadasImportadas.length > 0 && (
         <div className="flex items-center justify-between rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/60">
@@ -137,6 +204,9 @@ export function Ferramentas({
             placeholder="URL do serviço WMS"
             className="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white placeholder:text-white/40 focus:border-verde focus:outline-none"
           />
+          <p className="text-[10px] text-white/40">
+            Use a URL base do serviço, sem parâmetros (ex.: .../geoserver/wms) — não cole uma URL de GetCapabilities.
+          </p>
           <input
             value={wmsLayers}
             onChange={(e) => setWmsLayers(e.target.value)}

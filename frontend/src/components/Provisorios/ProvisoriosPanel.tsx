@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
 import type { Provisorio } from '../../types/provisorio'
+import type { PolygonGeoJSON } from '../../types/imovel'
 import { ProvisorioForm } from './ProvisorioForm'
 import { TIPO_LABEL, STATUS_LABEL, formVazio, provisorioParaForm, type ProvisorioFormData } from './types'
 
@@ -9,6 +10,9 @@ type Props = {
   onClose: () => void
   onAlterado: () => void
   onSelecionar?: (provisorio: Provisorio) => void
+  // Pré-carrega o polígono de uma geometria importada (KML/KMZ/Shapefile) direto no
+  // formulário de nova delimitação, substituindo a etapa de desenho manual.
+  geomInicial?: PolygonGeoJSON | null
 }
 
 function payload(form: ProvisorioFormData) {
@@ -21,14 +25,14 @@ function payload(form: ProvisorioFormData) {
   }
 }
 
-export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar }: Props) {
+export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicial }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
 
   const [lista, setLista] = useState<Provisorio[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [modo, setModo] = useState<'lista' | 'nova' | number>('lista')
+  const [modo, setModo] = useState<'lista' | 'nova' | number>(geomInicial ? 'nova' : 'lista')
   const [confirmando, setConfirmando] = useState<Provisorio | null>(null)
 
   const carregar = useCallback(async () => {
@@ -157,7 +161,12 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar }: Props) {
           )}
 
           {!carregando && modo === 'nova' && (
-            <ProvisorioForm titulo="Nova Delimitação Provisória" inicial={formVazio()} onSalvar={criar} onCancelar={() => setModo('lista')} />
+            <ProvisorioForm
+              titulo="Nova Delimitação Provisória"
+              inicial={{ ...formVazio(), geom: geomInicial ?? null }}
+              onSalvar={criar}
+              onCancelar={() => setModo('lista')}
+            />
           )}
 
           {!carregando && editando && (

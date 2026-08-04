@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
-import type { ImovelFeature } from '../types/imovel'
+import type { ImovelFeature, ImovelRegistro } from '../types/imovel'
 import { useAuthStore } from '../store/authStore'
 import { useMunicipioStore } from '../store/municipioStore'
 import { centroidePoligono } from '../utils/geo'
@@ -19,6 +19,25 @@ function formatarArea(m2: number) {
   return `${m2.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m²`
 }
 
+// UAs não têm geometria própria — a ficha reaproveita o polígono do terreno pai.
+function unidadeParaFeature(ua: ImovelRegistro, geometria: ImovelFeature['geometry']): ImovelFeature {
+  return {
+    type: 'Feature',
+    geometry: geometria,
+    properties: {
+      id: ua.id,
+      insc: ua.insc,
+      prop: ua.prop,
+      uso: ua.uso,
+      st: ua.st,
+      at_cad: ua.at_cad,
+      at_geo: ua.at_geo,
+      parentId: ua.parentId,
+      cib: ua.cib,
+    },
+  }
+}
+
 type Props = {
   feature: ImovelFeature | null
   onClose: () => void
@@ -35,9 +54,42 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
   const [erroExcluir, setErroExcluir] = useState<string | null>(null)
+  const [carregandoFicha, setCarregandoFicha] = useState(false)
+  const [unidadesParaEscolha, setUnidadesParaEscolha] = useState<ImovelRegistro[] | null>(null)
 
   if (!feature) return null
   const imovel = feature.properties
+
+  // Se o terreno tiver mais de uma UA vinculada, pergunta qual imprimir em vez de abrir a
+  // ficha do terreno direto; com 0 ou 1 UA, mantém o comportamento direto de sempre.
+  async function abrirFicha() {
+    if (!feature) return
+    if (imovel.parentId != null) {
+      imprimirFichaCadastral(feature, municipio.nome, municipio.uf)
+      return
+    }
+    setCarregandoFicha(true)
+    try {
+      const { data: unidades } = await api.get<ImovelRegistro[]>(`/api/imoveis/${imovel.id}/unidades`)
+      if (unidades.length > 1) {
+        setUnidadesParaEscolha(unidades)
+      } else if (unidades.length === 1) {
+        imprimirFichaCadastral(unidadeParaFeature(unidades[0], feature.geometry), municipio.nome, municipio.uf)
+      } else {
+        imprimirFichaCadastral(feature, municipio.nome, municipio.uf)
+      }
+    } catch {
+      imprimirFichaCadastral(feature, municipio.nome, municipio.uf)
+    } finally {
+      setCarregandoFicha(false)
+    }
+  }
+
+  function abrirFichaDaUnidade(ua: ImovelRegistro) {
+    if (!feature) return
+    imprimirFichaCadastral(unidadeParaFeature(ua, feature.geometry), municipio.nome, municipio.uf)
+    setUnidadesParaEscolha(null)
+  }
 
   async function excluir() {
     setExcluindo(true)
@@ -128,10 +180,11 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
           ⬇️ KML
         </button>
         <button
-          onClick={() => imprimirFichaCadastral(feature, municipio.nome, municipio.uf)}
-          className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+          onClick={abrirFicha}
+          disabled={carregandoFicha}
+          className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
-          🖨️ Ficha
+          {carregandoFicha ? '⏳' : '🖨️'} Ficha
         </button>
       </div>
 
@@ -216,6 +269,37 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
             onClose()
           }}
         />
+      )}
+
+      {unidadesParaEscolha && (
+        <div className="fixed inset-0 z-2000 flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-lg bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-navy">Escolha a unidade para imprimir</h3>
+                <p className="font-mono text-xs text-gray-500">{imovel.insc} tem {unidadesParaEscolha.length} unidades vinculadas</p>
+              </div>
+              <button
+                onClick={() => setUnidadesParaEscolha(null)}
+                aria-label="Fechar"
+                className="text-lg text-gray-400 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <ul className="divide-y divide-gray-100 overflow-y-auto">
+              {unidadesParaEscolha.map((ua) => (
+                <li key={ua.id}>
+                  <button onClick={() => abrirFichaDaUnidade(ua)} className="block w-full px-5 py-3 text-left hover:bg-gray-50">
+                    <p className="font-mono text-sm font-semibold text-navy">{ua.insc}</p>
+                    <p className="text-xs text-gray-600">{ua.prop}</p>
+                    <p className="text-xs text-gray-400">{USO_LABEL[ua.uso] ?? ua.uso}</p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       )}
 
       <HistoricoImovel imovelId={imovel.id} />

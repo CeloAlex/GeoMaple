@@ -73,7 +73,7 @@ export function ReguaArea({ iniciarEm }: Props) {
   }
 
   return (
-    <div className="absolute top-[275px] left-2.5 z-1000 flex flex-col gap-1 print:hidden">
+    <div className="flex flex-col gap-1">
       <button
         onClick={iniciar}
         className={`rounded border border-gray-300 px-2 py-1.5 text-sm shadow ${medindo ? 'bg-purple-700 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}

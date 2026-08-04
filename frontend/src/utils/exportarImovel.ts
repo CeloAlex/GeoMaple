@@ -44,13 +44,23 @@ export function imprimirFichaCadastral(feature: ImovelFeature, municipioNome: st
         <td>${area != null ? area.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²' : '—'}</td></tr>
     ${im.cib ? `<tr><td class="label">CIB</td><td>${im.cib}</td></tr>` : ''}
   </table>
+  <p id="aviso-tiles" class="rodape" style="display:none;color:#b45309"></p>
   <p class="rodape">Documento gerado automaticamente pelo GeoMaple · SGCIM. Sem validade jurídica sem assinatura/carimbo oficial.</p>
   <script>
     window.onload = () => {
       let jaImprimiu = false
+      let falhas = 0
       const imprimir = () => {
         if (jaImprimiu) return
         jaImprimiu = true
+        if (falhas > 0) {
+          console.warn('Ficha cadastral: ' + falhas + ' tile(s) de satélite não carregaram a tempo.')
+          const aviso = document.getElementById('aviso-tiles')
+          if (aviso) {
+            aviso.textContent = '⚠ Algumas imagens de fundo (satélite) podem não ter carregado — verifique a conexão e reimprima se necessário.'
+            aviso.style.display = 'block'
+          }
+        }
         setTimeout(() => window.print(), 200)
       }
       const imgs = Array.from(document.querySelectorAll('.mosaico img'))
@@ -59,9 +69,14 @@ export function imprimirFichaCadastral(feature: ImovelFeature, municipioNome: st
       const pronto = () => { if (--pendentes <= 0) imprimir() }
       imgs.forEach((img) => {
         if (img.complete) pronto()
-        else { img.addEventListener('load', pronto); img.addEventListener('error', pronto) }
+        else {
+          img.addEventListener('load', pronto)
+          img.addEventListener('error', () => { falhas++; pronto() })
+        }
       })
-      setTimeout(imprimir, 5000) // salvaguarda: imprime mesmo se algum tile nunca responder
+      // Salvaguarda: imprime mesmo se algum tile nunca responder (Esri é um serviço
+      // público, sem SLA — 12s dá margem para conexões mais lentas antes de desistir).
+      setTimeout(imprimir, 12000)
     }
   </script>
 </body></html>`)

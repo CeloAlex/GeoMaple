@@ -7,6 +7,7 @@ import { poligonoParaLatLngs, layerParaPoligono, calcularArea } from './geoDrawU
 
 export type SinglePolygonHandle = {
   iniciarDesenho: () => void
+  finalizarDesenho: () => void
   criarDePontos: (pontos: L.LatLngExpression[]) => void
 }
 
@@ -42,6 +43,12 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
       })
       desenhoAtivoRef.current = desenho
       desenho.enable()
+    },
+    finalizarDesenho() {
+      // Fecha o polígono em desenho explicitamente (>= 3 vértices) — complementa o
+      // duplo-clique, já que o clique no 1º vértice não fecha mais sozinho (ver patch
+      // do leaflet-draw: esse gatilho por proximidade causava fechamento acidental).
+      desenhoAtivoRef.current?.completeShape()
     },
     criarDePontos(pontos) {
       if (camadaRef.current) grupoRef.current.removeLayer(camadaRef.current)

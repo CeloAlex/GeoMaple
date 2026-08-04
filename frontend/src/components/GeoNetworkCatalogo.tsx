@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
+import { baseUrlWms } from '../utils/wms'
 import type { CamadaWms } from './Map/MapView'
 
 type CamadaCatalogo = { name: string; title: string; abstract: string }
@@ -46,7 +47,7 @@ export function GeoNetworkCatalogo({ onClose, camadasWms, onAdicionarWms, onRemo
   }
 
   function camadaExistente(camada: CamadaCatalogo) {
-    return camadasWms.find((c) => c.url === url.trim() && c.layers === camada.name)
+    return camadasWms.find((c) => c.url === baseUrlWms(url.trim()) && c.layers === camada.name)
   }
 
   function alternar(camada: CamadaCatalogo) {
@@ -54,7 +55,7 @@ export function GeoNetworkCatalogo({ onClose, camadasWms, onAdicionarWms, onRemo
     if (existente) {
       onRemoverWms(existente.id)
     } else {
-      onAdicionarWms({ id: crypto.randomUUID(), nome: camada.title, url: url.trim(), layers: camada.name })
+      onAdicionarWms({ id: crypto.randomUUID(), nome: camada.title, url: baseUrlWms(url.trim()), layers: camada.name })
     }
   }
 

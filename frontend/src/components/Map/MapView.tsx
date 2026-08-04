@@ -14,6 +14,7 @@ import { PontoGeorreferenciado } from './PontoGeorreferenciado'
 import { Legend } from './Legend'
 import { StatusBar } from './StatusBar'
 import { aplicarLocalePtBr } from './leafletDrawLocale'
+import { ramoOculto, parseInscricao } from '../../utils/inscricao'
 import L from 'leaflet'
 
 aplicarLocalePtBr()
@@ -23,7 +24,15 @@ export type CamadaWms = { id: string; nome: string; url: string; layers: string;
 
 const VAZIO: ImovelFeatureCollection = { type: 'FeatureCollection', features: [] }
 
-function CamadaQuadras({ recarregarEm, selecionadaId }: { recarregarEm?: number; selecionadaId?: number | null }) {
+function CamadaQuadras({
+  recarregarEm,
+  selecionadaId,
+  ramosOcultos,
+}: {
+  recarregarEm?: number
+  selecionadaId?: number | null
+  ramosOcultos?: Set<string>
+}) {
   const [quadras, setQuadras] = useState<Quadra[]>([])
 
   useEffect(() => {
@@ -38,7 +47,7 @@ function CamadaQuadras({ recarregarEm, selecionadaId }: { recarregarEm?: number;
   const fc = {
     type: 'FeatureCollection' as const,
     features: quadras
-      .filter((q) => q.geom)
+      .filter((q) => q.geom && !(ramosOcultos && ramoOculto(ramosOcultos, q.di, q.se, q.qu)))
       .map((q) => ({
         type: 'Feature' as const,
         geometry: q.geom!,
@@ -192,7 +201,7 @@ function BotoesGoogle() {
   }
 
   return (
-    <div className="absolute top-[170px] left-2.5 z-1000 flex flex-col overflow-hidden rounded border border-gray-300 bg-white text-sm shadow print:hidden">
+    <div className="flex flex-col overflow-hidden rounded border border-gray-300 bg-white text-sm shadow">
       <button onClick={abrirGoogleMaps} className="px-2 py-1.5 hover:bg-gray-100" title="Abrir no Google Maps">
         🛰️
       </button>
@@ -285,6 +294,7 @@ type Props = {
   onWmsErro?: (nomeCamada: string) => void
   medirDistanciaEm?: number
   medirAreaEm?: number
+  ramosOcultos?: Set<string>
 }
 
 export function MapView({
@@ -301,6 +311,7 @@ export function MapView({
   onWmsErro,
   medirDistanciaEm,
   medirAreaEm,
+  ramosOcultos,
 }: Props) {
   const [dados, setDados] = useState<ImovelFeatureCollection>(VAZIO)
   const centro = useMunicipioStore((s) => s.municipio.centro)
@@ -318,6 +329,16 @@ export function MapView({
     }
     return { color: '#2980b9', weight: 2, fillColor: '#2980b9', fillOpacity: 0.25 }
   }
+
+  const imoveisVisiveisPorRamo = ramosOcultos
+    ? {
+        ...dados,
+        features: dados.features.filter((f) => {
+          const partes = parseInscricao(f.properties.insc)
+          return !partes || !ramoOculto(ramosOcultos, partes.di, partes.se, partes.qu)
+        }),
+      }
+    : dados
 
   return (
     <MapContainer center={[centro.lat, centro.lng]} zoom={centro.zoom} maxZoom={MAX_ZOOM} className="h-full w-full">
@@ -344,15 +365,15 @@ export function MapView({
           />
         </LayersControl.BaseLayer>
         <LayersControl.Overlay checked name="Quadras georreferenciadas">
-          <CamadaQuadras recarregarEm={recarregarEm} selecionadaId={quadraSelecionadaId} />
+          <CamadaQuadras recarregarEm={recarregarEm} selecionadaId={quadraSelecionadaId} ramosOcultos={ramosOcultos} />
         </LayersControl.Overlay>
         <LayersControl.Overlay checked name="Delimitações provisórias">
           <CamadaProvisorios recarregarEm={recarregarEm} selecionadoId={provisorioSelecionadoId} />
         </LayersControl.Overlay>
         <LayersControl.Overlay checked name="Imóveis">
           <GeoJSON
-            key={dados.features.map((f) => f.properties.id).join(',')}
-            data={dados as never}
+            key={imoveisVisiveisPorRamo.features.map((f) => f.properties.id).join(',')}
+            data={imoveisVisiveisPorRamo as never}
             style={estiloFeature as never}
             onEachFeature={(feature, layer: Layer) => {
               layer.on('click', () => onSelect(feature as unknown as ImovelFeature))
@@ -370,10 +391,15 @@ export function MapView({
           </LayersControl.Overlay>
         ))}
       </LayersControl>
-      <BotoesGoogle />
-      <Regua iniciarEm={medirDistanciaEm} />
-      <ReguaArea iniciarEm={medirAreaEm} />
-      <PontoGeorreferenciado />
+      {/* Container único para os controles fixos do canto superior esquerdo do mapa —
+          empilhados em fluxo normal (não cada um com `top` absoluto próprio), para que o
+          badge de resultado da régua nunca fique embaixo do botão seguinte. */}
+      <div className="absolute top-[170px] left-2.5 z-1000 flex flex-col gap-1.5 print:hidden">
+        <BotoesGoogle />
+        <Regua iniciarEm={medirDistanciaEm} />
+        <ReguaArea iniciarEm={medirAreaEm} />
+        <PontoGeorreferenciado />
+      </div>
       <Voador destino={voarPara ?? null} />
       <FitTodos comandoEm={fitTodosEm} dados={dados} />
       <BuscadorDeImoveis onData={setDados} recarregarEm={recarregarEm} />

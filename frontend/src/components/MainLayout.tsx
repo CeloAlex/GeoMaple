@@ -12,6 +12,7 @@ import { MenuBar } from './MenuBar'
 import { Toolbar } from './Toolbar'
 import { GeoNetworkCatalogo } from './GeoNetworkCatalogo'
 import { ConversaoImportadosPanel } from './ConversaoImportadosPanel'
+import type { DestinoImportacao } from './Sidebar/Ferramentas'
 import { api } from '../api/client'
 import { centroidePoligono } from '../utils/geo'
 import { exportarImovelGeoJSON, exportarImovelKML } from '../utils/exportarImovel'
@@ -49,6 +50,18 @@ export function MainLayout() {
   const [provisorioSelecionadoId, setProvisorioSelecionadoId] = useState<number | null>(null)
   const [medirDistanciaEm, setMedirDistanciaEm] = useState(0)
   const [medirAreaEm, setMedirAreaEm] = useState(0)
+  const [ramosOcultos, setRamosOcultos] = useState<Set<string>>(new Set())
+  const [geomInicialQuadra, setGeomInicialQuadra] = useState<PolygonGeoJSON | null>(null)
+  const [geomInicialProvisorio, setGeomInicialProvisorio] = useState<PolygonGeoJSON | null>(null)
+
+  function alternarRamo(chave: string) {
+    setRamosOcultos((atual) => {
+      const proximo = new Set(atual)
+      if (proximo.has(chave)) proximo.delete(chave)
+      else proximo.add(chave)
+      return proximo
+    })
+  }
 
   function mostrarAviso(msg: string) {
     setAviso(msg)
@@ -131,6 +144,26 @@ export function MainLayout() {
     setWizardAberto(true)
   }
 
+  // Importação (KML/KMZ/GeoJSON/Shapefile) → escolha de destino (Sidebar/Ferramentas.tsx):
+  // substitui a etapa de desenho manual do polígono na tela correspondente.
+  function escolherDestinoImportacao(camada: CamadaImportada, destino: DestinoImportacao) {
+    const feature = camada.geojson.features.find((f) => f.geometry?.type === 'Polygon')
+    if (!feature) {
+      mostrarAviso('Nenhum polígono encontrado no arquivo importado.')
+      return
+    }
+    const geom = feature.geometry as PolygonGeoJSON
+    if (destino === 'cadastro') {
+      converterParaDefinitivo(geom)
+    } else if (destino === 'provisorio') {
+      setGeomInicialProvisorio(geom)
+      setProvisoriosAberto(true)
+    } else {
+      setGeomInicialQuadra(geom)
+      setQuadrasAberto(true)
+    }
+  }
+
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
       if (!(e.ctrlKey || e.metaKey)) return
@@ -185,6 +218,7 @@ export function MainLayout() {
             onAuditoria={() => setAuditoriaAberto(true)}
             onMinhaAtividade={() => setMinhaAtividadeAberto(true)}
             onSelecionarImovel={selecionarImovel}
+            onSelecionarQuadra={selecionarQuadra}
             onBuscarEndereco={buscarEndereco}
             recarregarArvoreEm={recarregarEm}
             imoveisVisiveis={imoveisVisiveis}
@@ -196,6 +230,9 @@ export function MainLayout() {
             onRemoverWms={(id) => setCamadasWms((cs) => cs.filter((c) => c.id !== id))}
             abrirFormularioWmsEm={wmsFormEm}
             onErro={mostrarAviso}
+            ramosOcultos={ramosOcultos}
+            onAlternarRamo={alternarRamo}
+            onEscolherDestinoImportacao={escolherDestinoImportacao}
           />
         )}
         <main className="relative flex-1">
@@ -213,6 +250,7 @@ export function MainLayout() {
             onWmsErro={(nome) => mostrarAviso(`⚠️ Camada WMS "${nome}" não retornou imagem — verifique nome técnico/URL/versão do serviço.`)}
             medirDistanciaEm={medirDistanciaEm}
             medirAreaEm={medirAreaEm}
+            ramosOcultos={ramosOcultos}
           />
           <DetailPanel
             feature={selecionado}
@@ -244,16 +282,24 @@ export function MainLayout() {
       />
       {quadrasAberto && (
         <QuadrasPanel
-          onClose={() => setQuadrasAberto(false)}
+          onClose={() => {
+            setQuadrasAberto(false)
+            setGeomInicialQuadra(null)
+          }}
           onAlterado={() => setRecarregarEm((n) => n + 1)}
           onSelecionar={selecionarQuadra}
+          geomInicial={geomInicialQuadra}
         />
       )}
       {provisoriosAberto && (
         <ProvisoriosPanel
-          onClose={() => setProvisoriosAberto(false)}
+          onClose={() => {
+            setProvisoriosAberto(false)
+            setGeomInicialProvisorio(null)
+          }}
           onAlterado={() => setRecarregarEm((n) => n + 1)}
           onSelecionar={selecionarProvisorio}
+          geomInicial={geomInicialProvisorio}
         />
       )}
       {operadoresAberto && <OperadoresPanel onClose={() => setOperadoresAberto(false)} />}

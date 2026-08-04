@@ -11,7 +11,7 @@ export function aplicarLocalePtBr() {
   L.drawLocal.draw.toolbar.buttons.polygon = 'Desenhar um polígono'
   L.drawLocal.draw.handlers.polygon.tooltip.start = 'Clique para começar a desenhar o polígono.'
   L.drawLocal.draw.handlers.polygon.tooltip.cont = 'Clique para continuar desenhando o polígono.'
-  L.drawLocal.draw.handlers.polygon.tooltip.end = 'Clique no primeiro ponto para fechar o polígono.'
+  L.drawLocal.draw.handlers.polygon.tooltip.end = 'Dê duplo-clique ou use o botão "Concluir polígono" para fechar.'
   L.drawLocal.draw.handlers.polyline.tooltip.start = 'Clique para começar a desenhar a linha.'
   L.drawLocal.draw.handlers.polyline.tooltip.cont = 'Clique para continuar desenhando a linha.'
   L.drawLocal.draw.handlers.polyline.tooltip.end = 'Clique no último ponto para finalizar a linha.'

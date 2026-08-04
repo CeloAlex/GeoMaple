@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useMunicipioStore } from '../store/municipioStore'
 import { Busca } from './Sidebar/Busca'
-import { ArvoreHierarquica } from './Sidebar/ArvoreHierarquica'
-import { Ferramentas } from './Sidebar/Ferramentas'
+import { ArvoreCamadas } from './Sidebar/ArvoreCamadas'
+import { Ferramentas, type DestinoImportacao } from './Sidebar/Ferramentas'
 import type { ImovelFeatureCollection, ImovelRegistro } from '../types/imovel'
+import type { Quadra } from '../types/quadra'
 import type { CamadaImportada } from '../utils/importarGeo'
 import type { CamadaWms, Destino } from './Map/MapView'
 
@@ -21,6 +23,7 @@ type Props = {
   onAuditoria: () => void
   onMinhaAtividade: () => void
   onSelecionarImovel: (imovel: ImovelRegistro) => void
+  onSelecionarQuadra: (quadra: Quadra) => void
   onBuscarEndereco: (destino: Destino, rotulo: string) => void
   recarregarArvoreEm?: number
   imoveisVisiveis: ImovelFeatureCollection
@@ -32,6 +35,9 @@ type Props = {
   onRemoverWms: (id: string) => void
   abrirFormularioWmsEm?: number
   onErro?: (msg: string) => void
+  ramosOcultos: Set<string>
+  onAlternarRamo: (chave: string) => void
+  onEscolherDestinoImportacao?: (camada: CamadaImportada, destino: DestinoImportacao) => void
 }
 
 export function Sidebar({
@@ -42,6 +48,7 @@ export function Sidebar({
   onAuditoria,
   onMinhaAtividade,
   onSelecionarImovel,
+  onSelecionarQuadra,
   onBuscarEndereco,
   recarregarArvoreEm,
   imoveisVisiveis,
@@ -53,12 +60,16 @@ export function Sidebar({
   onRemoverWms,
   abrirFormularioWmsEm,
   onErro,
+  ramosOcultos,
+  onAlternarRamo,
+  onEscolherDestinoImportacao,
 }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const logout = useAuthStore((s) => s.logout)
   const municipio = useMunicipioStore((s) => s.municipio)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
   const ehAdmin = usuario?.perm === 'admin'
+  const [acoesAbertas, setAcoesAbertas] = useState(false)
 
   return (
     <aside className="flex w-72 shrink-0 flex-col bg-navy text-white print:hidden">
@@ -73,64 +84,85 @@ export function Sidebar({
         <Busca onSelecionar={onSelecionarImovel} onBuscarEndereco={onBuscarEndereco} />
       </div>
 
-      <div className="p-4 pb-0 text-sm text-white/70">
-        {podeEditar && (
-          <button
-            onClick={onNovoCadastro}
-            className="mb-2 w-full rounded bg-verde py-2 text-sm font-medium text-white transition hover:bg-verde/90"
-          >
-            + Novo Cadastro
-          </button>
-        )}
-        <button
-          onClick={onQuadras}
-          className="mb-2 w-full rounded border border-ambar/60 py-2 text-sm font-medium text-ambar transition hover:bg-ambar/10"
-        >
-          🗺️ Quadras
-        </button>
-        <button
-          onClick={onProvisorios}
-          className="w-full rounded border border-orange-500/60 py-2 text-sm font-medium text-orange-400 transition hover:bg-orange-500/10"
-        >
-          🚧 Provisórios
-        </button>
-      </div>
-
-      {/* Navegação de uso diário — recebe a maior parte do espaço/scroll da sidebar,
-          em vez de ficar no fim, abaixo de ferramentas e ações administrativas. */}
-      <div className="flex flex-1 flex-col overflow-y-auto px-4 pt-4 pb-2 text-sm text-white/70">
-        <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Árvore hierárquica</p>
-        <ArvoreHierarquica onSelecionar={onSelecionarImovel} recarregarEm={recarregarArvoreEm} />
-      </div>
-
-      <div className="max-h-[45%] shrink-0 space-y-4 overflow-y-auto border-t border-white/10 px-4 py-4 text-sm text-white/70">
-        <Ferramentas
-          imoveisVisiveis={imoveisVisiveis}
-          camadasImportadas={camadasImportadas}
-          onImportar={onImportar}
-          onLimparImportadas={onLimparImportadas}
-          camadasWms={camadasWms}
-          onAdicionarWms={onAdicionarWms}
-          onRemoverWms={onRemoverWms}
-          abrirFormularioEm={abrirFormularioWmsEm}
-          onErro={onErro}
+      {/* Árvore de camadas (Distrito → Setor → Quadra → Imóveis) é o elemento principal
+          da barra lateral, ocupando a maior parte do espaço — estilo Google Earth. Os
+          botões de ação ficam recolhidos por padrão em "Ações", uma área secundária que
+          não compete visualmente com a árvore. */}
+      <div className="flex flex-1 flex-col overflow-y-auto px-4 pt-3 pb-2 text-sm text-white/70">
+        <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Árvore de camadas</p>
+        <ArvoreCamadas
+          onSelecionarImovel={onSelecionarImovel}
+          onSelecionarQuadra={onSelecionarQuadra}
+          recarregarEm={recarregarArvoreEm}
+          ramosOcultos={ramosOcultos}
+          onAlternarRamo={onAlternarRamo}
         />
+      </div>
 
-        {ehAdmin && (
-          <div className="space-y-2 border-t border-white/10 pt-4">
-            <p className="text-xs font-semibold tracking-wide text-white/50 uppercase">Administração</p>
-            <button
-              onClick={onOperadores}
-              className="w-full rounded border border-white/20 py-1.5 text-xs text-white/80 hover:bg-white/10"
-            >
-              👤 Operadores
-            </button>
-            <button
-              onClick={onAuditoria}
-              className="w-full rounded border border-white/20 py-1.5 text-xs text-white/80 hover:bg-white/10"
-            >
-              📜 Auditoria
-            </button>
+      <div className="shrink-0 border-t border-white/10">
+        <button
+          onClick={() => setAcoesAbertas((a) => !a)}
+          className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold tracking-wide text-white/60 uppercase hover:bg-white/5"
+        >
+          <span>☰ Ações</span>
+          <span>{acoesAbertas ? '▲' : '▼'}</span>
+        </button>
+
+        {acoesAbertas && (
+          <div className="max-h-[50vh] space-y-4 overflow-y-auto px-4 pb-4 text-sm text-white/70">
+            <div className="space-y-2">
+              {podeEditar && (
+                <button
+                  onClick={onNovoCadastro}
+                  className="w-full rounded bg-verde py-2 text-sm font-medium text-white transition hover:bg-verde/90"
+                >
+                  + Novo Cadastro
+                </button>
+              )}
+              <button
+                onClick={onQuadras}
+                className="w-full rounded border border-ambar/60 py-2 text-sm font-medium text-ambar transition hover:bg-ambar/10"
+              >
+                🗺️ Quadras
+              </button>
+              <button
+                onClick={onProvisorios}
+                className="w-full rounded border border-orange-500/60 py-2 text-sm font-medium text-orange-400 transition hover:bg-orange-500/10"
+              >
+                🚧 Provisórios
+              </button>
+            </div>
+
+            <Ferramentas
+              imoveisVisiveis={imoveisVisiveis}
+              camadasImportadas={camadasImportadas}
+              onImportar={onImportar}
+              onLimparImportadas={onLimparImportadas}
+              camadasWms={camadasWms}
+              onAdicionarWms={onAdicionarWms}
+              onRemoverWms={onRemoverWms}
+              abrirFormularioEm={abrirFormularioWmsEm}
+              onErro={onErro}
+              onEscolherDestinoImportacao={onEscolherDestinoImportacao}
+            />
+
+            {ehAdmin && (
+              <div className="space-y-2 border-t border-white/10 pt-4">
+                <p className="text-xs font-semibold tracking-wide text-white/50 uppercase">Administração</p>
+                <button
+                  onClick={onOperadores}
+                  className="w-full rounded border border-white/20 py-1.5 text-xs text-white/80 hover:bg-white/10"
+                >
+                  👤 Operadores
+                </button>
+                <button
+                  onClick={onAuditoria}
+                  className="w-full rounded border border-white/20 py-1.5 text-xs text-white/80 hover:bg-white/10"
+                >
+                  📜 Auditoria
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

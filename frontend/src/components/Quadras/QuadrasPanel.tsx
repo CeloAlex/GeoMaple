@@ -2,12 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
 import type { Quadra } from '../../types/quadra'
+import type { PolygonGeoJSON } from '../../types/imovel'
 import { QuadraForm, type QuadraFormData } from './QuadraForm'
 
 type Props = {
   onClose: () => void
   onAlterado: () => void
   onSelecionar?: (quadra: Quadra) => void
+  // Pré-carrega o polígono de uma geometria importada (KML/KMZ/Shapefile) direto no
+  // formulário de nova quadra, substituindo a etapa de desenho manual.
+  geomInicial?: PolygonGeoJSON | null
 }
 
 function payload(form: QuadraFormData) {
@@ -29,14 +33,14 @@ function quadraParaForm(q: Quadra): QuadraFormData {
   return { di: q.di, se: q.se, qu: q.qu, cod: q.cod ?? '', obs: q.obs ?? '', geom: q.geom }
 }
 
-export function QuadrasPanel({ onClose, onAlterado, onSelecionar }: Props) {
+export function QuadrasPanel({ onClose, onAlterado, onSelecionar, geomInicial }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
 
   const [quadras, setQuadras] = useState<Quadra[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [modo, setModo] = useState<'lista' | 'nova' | number>('lista')
+  const [modo, setModo] = useState<'lista' | 'nova' | number>(geomInicial ? 'nova' : 'lista')
   const [confirmando, setConfirmando] = useState<Quadra | null>(null)
 
   const carregar = useCallback(async () => {
@@ -166,7 +170,12 @@ export function QuadrasPanel({ onClose, onAlterado, onSelecionar }: Props) {
           )}
 
           {!carregando && modo === 'nova' && (
-            <QuadraForm titulo="Nova Quadra" inicial={formVazio()} onSalvar={criar} onCancelar={() => setModo('lista')} />
+            <QuadraForm
+              titulo="Nova Quadra"
+              inicial={{ ...formVazio(), geom: geomInicial ?? null }}
+              onSalvar={criar}
+              onCancelar={() => setModo('lista')}
+            />
           )}
 
           {!carregando && editando && (
