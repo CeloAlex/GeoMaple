@@ -51,6 +51,8 @@ export type ImovelRegistro = {
   at_geo: number | null
   ac_cad: number | null
   ac_geo: number | null
+  at_aviso_ok: boolean
+  ac_aviso_ok: boolean
   num_pav: number | null
   frac_ideal: string | null
   obs: string | null

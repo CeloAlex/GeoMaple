@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { ImovelRegistro, ImovelSelecionado, PolygonGeoJSON } from '../types/imovel'
 import { useAuthStore } from '../store/authStore'
@@ -22,6 +22,53 @@ function formatarArea(m2: number) {
 
 function formatarMoeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+// Mesma fórmula usada em Wizard/Step4Cadastrais.tsx para o alerta de área durante o
+// cadastro — reaproveitada aqui para a ficha, que compara os dois valores já salvos.
+function diferencaPercentual(cad: number | null, geo: number | null) {
+  if (cad == null || geo == null || cad === 0) return null
+  return ((geo - cad) / cad) * 100
+}
+
+const AVISO_INCONSISTENCIA =
+  'Inconsistência de áreas: diferença superior a 10% entre a área cadastral e a área georreferenciada.'
+
+type BlocoAreaProps = {
+  titulo: string
+  cad: number | null
+  geo: number | null
+  avisoOk: boolean
+  onDispensar: () => void
+}
+
+function BlocoArea({ titulo, cad, geo, avisoOk, onDispensar }: BlocoAreaProps) {
+  const diferenca = diferencaPercentual(cad, geo)
+  const inconsistente = diferenca != null && Math.abs(diferenca) > 10 && !avisoOk
+  return (
+    <>
+      {cad != null && (
+        <div>
+          <dt className="text-gray-500">{titulo} Cadastral</dt>
+          <dd className="font-medium text-gray-900">{formatarArea(cad)}</dd>
+        </div>
+      )}
+      {geo != null && (
+        <div>
+          <dt className="text-gray-500">{titulo} Georreferenciada</dt>
+          <dd className="font-medium text-gray-900">{formatarArea(geo)}</dd>
+        </div>
+      )}
+      {inconsistente && (
+        <div className="rounded border border-ambar/60 bg-ambar/10 px-3 py-2 text-xs text-navy">
+          <p>⚠️ {AVISO_INCONSISTENCIA}</p>
+          <button onClick={onDispensar} className="mt-1.5 font-medium text-ambar underline hover:no-underline">
+            Marcar como revisado
+          </button>
+        </div>
+      )}
+    </>
+  )
 }
 
 // UAs não têm geometria própria — a ficha reaproveita o polígono do terreno pai.
@@ -51,9 +98,25 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
   const [erroExcluir, setErroExcluir] = useState<string | null>(null)
   const [carregandoFicha, setCarregandoFicha] = useState(false)
   const [unidadesParaEscolha, setUnidadesParaEscolha] = useState<ImovelRegistro[] | null>(null)
+  const [avisoOverride, setAvisoOverride] = useState<{ at?: boolean; ac?: boolean }>({})
+
+  // Reseta os overrides locais (usados para refletir "Marcar como revisado" na hora, sem
+  // esperar recarregar o imóvel) sempre que a ficha exibida muda de imóvel.
+  useEffect(() => {
+    setAvisoOverride({})
+  }, [feature?.properties.id])
 
   if (!feature) return null
   const imovel = feature.properties
+
+  async function dispensarAviso(campo: 'at_aviso_ok' | 'ac_aviso_ok') {
+    setAvisoOverride((o) => ({ ...o, [campo === 'at_aviso_ok' ? 'at' : 'ac']: true }))
+    try {
+      await api.put(`/api/imoveis/${imovel.id}`, { [campo]: true })
+    } catch {
+      setAvisoOverride((o) => ({ ...o, [campo === 'at_aviso_ok' ? 'at' : 'ac']: undefined }))
+    }
+  }
 
   // Se o terreno tiver mais de uma UA vinculada, pergunta qual imprimir em vez de abrir a
   // ficha do terreno direto; com 0 ou 1 UA, mantém o comportamento direto de sempre.
@@ -99,8 +162,9 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
     }
   }
 
-  const area = imovel.at_geo ?? imovel.at_cad
   const c = centroidePoligono(feature.geometry)
+  const avisoTerrenoOk = avisoOverride.at ?? imovel.at_aviso_ok
+  const avisoConstruidaOk = avisoOverride.ac ?? imovel.ac_aviso_ok
 
   return (
     <aside className="absolute top-0 right-0 z-1000 h-full w-80 overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-xl print:hidden">
@@ -128,12 +192,13 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
           <dt className="text-gray-500">Status</dt>
           <dd className="font-medium text-gray-900">{STATUS_LABEL[imovel.st] ?? imovel.st}</dd>
         </div>
-        <div>
-          <dt className="text-gray-500">
-            Área {imovel.at_geo != null ? 'georreferenciada' : 'cadastral'}
-          </dt>
-          <dd className="font-medium text-gray-900">{area != null ? formatarArea(area) : '—'}</dd>
-        </div>
+        <BlocoArea
+          titulo="Área do Terreno"
+          cad={imovel.at_cad}
+          geo={imovel.at_geo}
+          avisoOk={avisoTerrenoOk}
+          onDispensar={() => dispensarAviso('at_aviso_ok')}
+        />
         {imovel.parentId != null && (
           <div>
             <dt className="text-gray-500">Unidade Autônoma</dt>
@@ -167,11 +232,14 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
             <dd className="font-medium text-gray-900">{imovel.tp}</dd>
           </div>
         )}
-        {(imovel.ac_cad != null || imovel.ac_geo != null) && (
-          <div>
-            <dt className="text-gray-500">Área construída {imovel.ac_geo != null ? 'georreferenciada' : 'cadastral'}</dt>
-            <dd className="font-medium text-gray-900">{formatarArea((imovel.ac_geo ?? imovel.ac_cad)!)}</dd>
-          </div>
+        {(imovel.ac_cad != null || imovel.ac_geo != null || feature.properties.geom_bld != null) && (
+          <BlocoArea
+            titulo="Área Construída"
+            cad={imovel.ac_cad}
+            geo={imovel.ac_geo}
+            avisoOk={avisoConstruidaOk}
+            onDispensar={() => dispensarAviso('ac_aviso_ok')}
+          />
         )}
         {imovel.num_pav != null && (
           <div>

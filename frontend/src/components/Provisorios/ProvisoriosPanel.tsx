@@ -13,6 +13,9 @@ type Props = {
   // Pré-carrega o polígono de uma geometria importada (KML/KMZ/Shapefile) direto no
   // formulário de nova delimitação, substituindo a etapa de desenho manual.
   geomInicial?: PolygonGeoJSON | null
+  // Converte um Provisório já salvo em Cadastro Definitivo — pré-carrega o polígono no
+  // wizard de novo cadastro (mesmo caminho usado para converter geometrias importadas).
+  onConverterParaDefinitivo?: (provisorio: Provisorio) => void
 }
 
 function payload(form: ProvisorioFormData) {
@@ -25,7 +28,7 @@ function payload(form: ProvisorioFormData) {
   }
 }
 
-export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicial }: Props) {
+export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicial, onConverterParaDefinitivo }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
 
@@ -34,6 +37,7 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
   const [erro, setErro] = useState<string | null>(null)
   const [modo, setModo] = useState<'lista' | 'nova' | number>(geomInicial ? 'nova' : 'lista')
   const [confirmando, setConfirmando] = useState<Provisorio | null>(null)
+  const [busca, setBusca] = useState('')
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -81,6 +85,16 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
 
   const editando = typeof modo === 'number' ? lista.find((p) => p.id === modo) : undefined
 
+  const termo = busca.trim().toLocaleLowerCase('pt-BR')
+  const listaFiltrada = termo
+    ? lista.filter((p) =>
+        [p.nome, TIPO_LABEL[p.tipo] ?? p.tipo, STATUS_LABEL[p.status] ?? p.status]
+          .join(' ')
+          .toLocaleLowerCase('pt-BR')
+          .includes(termo),
+      )
+    : lista
+
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
       <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-2xl">
@@ -113,13 +127,25 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
 
           {!carregando && modo === 'lista' && (
             <>
+              {lista.length > 0 && (
+                <input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por nome, tipo ou status…"
+                  className="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm text-navy placeholder:text-gray-400 focus:border-navy focus:outline-none"
+                />
+              )}
               {lista.length === 0 ? (
                 <p className="rounded bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
                   Nenhuma delimitação provisória cadastrada.
                 </p>
+              ) : listaFiltrada.length === 0 ? (
+                <p className="rounded bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
+                  Nenhuma delimitação encontrada para "{busca}".
+                </p>
               ) : (
                 <ul className="divide-y divide-gray-100 rounded border border-gray-100">
-                  {lista.map((p) => (
+                  {listaFiltrada.map((p) => (
                     <li
                       key={p.id}
                       onClick={() => p.geom && onSelecionar?.(p)}
@@ -136,6 +162,15 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
                       </span>
                       {podeEditar && (
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          {p.geom && p.status !== 'convertido' && onConverterParaDefinitivo && (
+                            <button
+                              onClick={() => onConverterParaDefinitivo(p)}
+                              title="Converter em Cadastro Definitivo"
+                              className="rounded bg-verde px-2 py-1 text-xs text-white hover:bg-verde/90"
+                            >
+                              ➡️
+                            </button>
+                          )}
                           <button onClick={() => setModo(p.id)} className="rounded bg-navy px-2 py-1 text-xs text-white hover:bg-navy/90">
                             ✏️
                           </button>

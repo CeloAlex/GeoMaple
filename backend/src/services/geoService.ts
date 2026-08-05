@@ -24,14 +24,13 @@ export async function lerGeometria(id: number) {
 // Unidades Autônomas nunca têm geometria própria — terreno e edificação são únicos por
 // lote, compartilhados por todas as UAs vinculadas. Resolve sempre para a linha do
 // terreno (parentId ?? id) antes de ler/gravar, para que editar a partir de QUALQUER UA
-// opere sobre a mesma geometria do lote, sem criar cópias divergentes.
+// opere sobre a mesma geometria do lote, sem criar cópias divergentes. `imovel` retornado
+// é sempre o registro ORIGINALMENTE pedido (não o terreno) — cada UA mantém sua própria
+// identidade cadastral (insc, prop, etc.); só a geometria é resolvida para o terreno.
 async function resolverIdTerreno(id: number) {
   const imovel = await prisma.imovel.findUnique({ where: { id } })
   if (!imovel) throw new AppError(404, 'Imóvel não encontrado')
-  if (imovel.parentId === null) return { imovel, idTerreno: id }
-  const terreno = await prisma.imovel.findUnique({ where: { id: imovel.parentId } })
-  if (!terreno) throw new AppError(404, 'Imóvel não encontrado')
-  return { imovel: terreno, idTerreno: imovel.parentId }
+  return { imovel, idTerreno: imovel.parentId ?? id }
 }
 
 export async function obterGeometria(id: number) {

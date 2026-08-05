@@ -5,7 +5,7 @@ import { registrarAuditoria } from './auditService'
 
 // Mesmas opções do protótipo SGCIM_v10.html (prov-tipo / prov-status)
 const TIPOS_VALIDOS = ['rural', 'estudo', 'levantamento', 'sem_id', 'fiscalizacao', 'novo']
-const STATUS_VALIDOS = ['em_estudo', 'levantamento', 'fiscalizacao', 'novo']
+const STATUS_VALIDOS = ['em_estudo', 'levantamento', 'fiscalizacao', 'novo', 'convertido']
 
 type ProvisorioRow = {
   id: number

@@ -145,6 +145,18 @@ export function MainLayout() {
     setWizardAberto(true)
   }
 
+  // Converte um Provisório já salvo em Cadastro Definitivo: fecha o painel de Provisórios,
+  // pré-carrega o polígono no wizard (mesmo caminho de converterParaDefinitivo, usado hoje
+  // só para importações) e marca o provisório como convertido, para não sumir do histórico
+  // nem ser convertido de novo por engano.
+  function converterProvisorioParaDefinitivo(provisorio: Provisorio) {
+    if (!provisorio.geom) return
+    setProvisoriosAberto(false)
+    setGeomInicialProvisorio(null)
+    converterParaDefinitivo(provisorio.geom)
+    api.put(`/api/provisorios/${provisorio.id}`, { status: 'convertido' }).then(() => setRecarregarEm((n) => n + 1))
+  }
+
   // Importação (KML/KMZ/GeoJSON/Shapefile) → escolha de destino (Sidebar/Ferramentas.tsx):
   // substitui a etapa de desenho manual do polígono na tela correspondente.
   function escolherDestinoImportacao(camada: CamadaImportada, destino: DestinoImportacao) {
@@ -304,6 +316,7 @@ export function MainLayout() {
           onAlterado={() => setRecarregarEm((n) => n + 1)}
           onSelecionar={selecionarProvisorio}
           geomInicial={geomInicialProvisorio}
+          onConverterParaDefinitivo={converterProvisorioParaDefinitivo}
         />
       )}
       {operadoresAberto && <OperadoresPanel onClose={() => setOperadoresAberto(false)} />}

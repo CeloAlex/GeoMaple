@@ -24,6 +24,8 @@ model Imovel {
   at_geo     Float? // área do terreno georreferenciada (m²)
   ac_cad     Float? // área construída cadastral (m²)
   ac_geo     Float? // área construída georreferenciada (m²)
+  at_aviso_ok Boolean @default(false) // inconsistência entre at_cad/at_geo (>10%) revisada e aceita pelo usuário
+  ac_aviso_ok Boolean @default(false) // idem, para ac_cad/ac_geo
   num_pav    Int? // número de pavimentos
   frac_ideal String? // fração ideal (ex: "1/4")
   obs        String?

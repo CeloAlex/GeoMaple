@@ -14,11 +14,36 @@ export function exportarImovelKML(feature: ImovelFeature) {
   baixarArquivo(`${feature.properties.insc}.kml`, kml, 'application/vnd.google-earth.kml+xml')
 }
 
+const AVISO_INCONSISTENCIA_FICHA =
+  'Inconsistência de áreas: diferença superior a 10% entre a área cadastral e a área georreferenciada.'
+
+function formatarAreaM2(m2: number) {
+  return m2.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²'
+}
+
+// Mesma fórmula usada em DetailPanel.tsx/Wizard/Step4Cadastrais.tsx.
+function inconsistente(cad: number | null, geo: number | null, avisoOk: boolean) {
+  if (cad == null || geo == null || cad === 0 || avisoOk) return false
+  return Math.abs(((geo - cad) / cad) * 100) > 10
+}
+
 export function imprimirFichaCadastral(feature: ImovelSelecionado, municipioNome: string, municipioUf: string) {
   const im = feature.properties
-  const area = im.at_geo ?? im.at_cad
-  const acArea = im.ac_geo ?? im.ac_cad
   const mapa = mosaicoSatelite(feature.geometry.coordinates[0])
+
+  const linhasArea: string[] = []
+  if (im.at_cad != null) linhasArea.push(`<tr><td class="label">Área do Terreno Cadastral</td><td>${formatarAreaM2(im.at_cad)}</td></tr>`)
+  if (im.at_geo != null) linhasArea.push(`<tr><td class="label">Área do Terreno Georreferenciada</td><td>${formatarAreaM2(im.at_geo)}</td></tr>`)
+  if (inconsistente(im.at_cad, im.at_geo, im.at_aviso_ok)) {
+    linhasArea.push(`<tr><td colspan="2" style="color:#b45309;font-size:12px">⚠️ ${AVISO_INCONSISTENCIA_FICHA}</td></tr>`)
+  }
+  const temEdificacao = im.ac_cad != null || im.ac_geo != null || feature.properties.geom_bld != null
+  if (temEdificacao && im.ac_cad != null) linhasArea.push(`<tr><td class="label">Área Construída Cadastral</td><td>${formatarAreaM2(im.ac_cad)}</td></tr>`)
+  if (temEdificacao && im.ac_geo != null) linhasArea.push(`<tr><td class="label">Área Construída Georreferenciada</td><td>${formatarAreaM2(im.ac_geo)}</td></tr>`)
+  if (temEdificacao && inconsistente(im.ac_cad, im.ac_geo, im.ac_aviso_ok)) {
+    linhasArea.push(`<tr><td colspan="2" style="color:#b45309;font-size:12px">⚠️ ${AVISO_INCONSISTENCIA_FICHA}</td></tr>`)
+  }
+  const linhasAreaHtml = linhasArea.join('\n')
 
   // Todos os campos cadastrados, além do resumo (proprietário/uso/status/área/CIB) já
   // exibido acima — mesmo conjunto de campos extras mostrado em DetailPanel.tsx.
@@ -27,7 +52,6 @@ export function imprimirFichaCadastral(feature: ImovelSelecionado, municipioNome
   if (im.bai) linhasExtras.push(['Bairro', im.bai])
   if (im.cep) linhasExtras.push(['CEP', im.cep])
   if (im.tp) linhasExtras.push(['Tipo', im.tp])
-  if (acArea != null) linhasExtras.push([`Área construída ${im.ac_geo != null ? 'georreferenciada' : 'cadastral'}`, acArea.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²'])
   if (im.num_pav != null) linhasExtras.push(['Nº de pavimentos', String(im.num_pav)])
   if (im.frac_ideal) linhasExtras.push(['Fração ideal', im.frac_ideal])
   if (im.cadurb_tipo != null) linhasExtras.push(['Tipo imóvel CADURB', CADURB_TIPO_LABEL[String(im.cadurb_tipo)] ?? String(im.cadurb_tipo)])
@@ -64,8 +88,7 @@ export function imprimirFichaCadastral(feature: ImovelSelecionado, municipioNome
     <tr><td class="label">Proprietário</td><td>${im.prop}</td></tr>
     <tr><td class="label">Uso</td><td>${USO_LABEL[im.uso] ?? im.uso}</td></tr>
     <tr><td class="label">Status</td><td>${STATUS_LABEL[im.st] ?? im.st}</td></tr>
-    <tr><td class="label">Área ${im.at_geo != null ? 'georreferenciada' : 'cadastral'}</td>
-        <td>${area != null ? area.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²' : '—'}</td></tr>
+    ${linhasAreaHtml}
     ${im.cib ? `<tr><td class="label">CIB</td><td>${im.cib}</td></tr>` : ''}
     ${linhasExtrasHtml}
   </table>

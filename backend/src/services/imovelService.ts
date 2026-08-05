@@ -19,6 +19,8 @@ export const CAMPOS_CRIACAO = [
   'st',
   'at_cad',
   'ac_cad',
+  'at_aviso_ok',
+  'ac_aviso_ok',
   'num_pav',
   'frac_ideal',
   'obs',

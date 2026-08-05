@@ -339,7 +339,7 @@ export function MapView({
         ...dados,
         features: dados.features.filter((f) => {
           const partes = parseInscricao(f.properties.insc)
-          return !partes || !ramoOculto(ramosOcultosCadastros, partes.di, partes.se, partes.qu)
+          return !partes || !ramoOculto(ramosOcultosCadastros, partes.di, partes.se, partes.qu, partes.lote)
         }),
       }
     : dados
