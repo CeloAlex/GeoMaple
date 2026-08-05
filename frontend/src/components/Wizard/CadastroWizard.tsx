@@ -13,7 +13,7 @@ import { Step5Revisao } from './Step5Revisao'
 type Props = {
   aberto: boolean
   onClose: () => void
-  onSalvo: () => void
+  onSalvo: (imovel: ImovelRegistro) => void
   geomInicial?: PolygonGeoJSON | null
 }
 
@@ -40,6 +40,8 @@ function montarPayload(form: WizardFormData) {
     ac_cad: num(form.ac_cad),
     num_pav: num(form.num_pav),
     frac_ideal: form.frac_ideal || undefined,
+    cib: form.cib || undefined,
+    matricula: form.matricula || undefined,
     obs: form.obs || undefined,
     cadurb_tipo: cadurbTipo,
     tp_arq: territorial ? undefined : num(form.tp_arq),
@@ -204,7 +206,7 @@ export function CadastroWizard({ aberto, onClose, onSalvo, geomInicial }: Props)
         await api.put(`/api/imoveis/${imovel.id}/geometria`, geometria)
       }
 
-      onSalvo()
+      onSalvo(imovel)
       onClose()
     } catch (err) {
       setErro(extrairErroApi(err, 'Não foi possível salvar o cadastro. Tente novamente.'))

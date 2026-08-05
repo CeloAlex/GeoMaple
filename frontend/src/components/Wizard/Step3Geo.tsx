@@ -23,6 +23,7 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
   const geoRef = useRef<GeoDrawHandle>(null)
   const centro = useMunicipioStore((s) => s.municipio.centro)
   const [expandido, setExpandido] = useState(false)
+  const [snapAtivo, setSnapAtivo] = useState(true)
 
   return (
     <div className="space-y-3">
@@ -57,6 +58,16 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
           className="rounded border border-verde px-3 py-1.5 text-xs font-medium text-verde hover:bg-verde/10"
         >
           ✅ Concluir polígono
+        </button>
+        <button
+          type="button"
+          onClick={() => setSnapAtivo((a) => !a)}
+          title="Encaixar vértices automaticamente nos lotes confrontantes"
+          className={`rounded border px-3 py-1.5 text-xs font-medium ${
+            snapAtivo ? 'border-navy bg-navy/5 text-navy' : 'border-gray-300 text-gray-400'
+          }`}
+        >
+          🧲 Ajuste Topológico {snapAtivo ? 'ligado' : 'desligado'}
         </button>
         <ColarCoordenadas
           rotulo="📋 Colar coordenadas do terreno"
@@ -94,6 +105,7 @@ export function Step3Geo({ form, set, herdadoInsc }: Props) {
               set('geomBld', geom)
               set('areaEdifCalc', area)
             }}
+            snapAtivo={snapAtivo}
             ref={geoRef}
           />
           <InvalidateSizeAoMudar watch={expandido} />

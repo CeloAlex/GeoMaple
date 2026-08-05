@@ -24,7 +24,6 @@ export const STATUS_LABEL: Record<string, string> = {
   levantamento: 'Levantamento',
   fiscalizacao: 'Fiscalização',
   novo: 'Novo',
-  convertido: 'Convertido em cadastro',
 }
 
 export function formVazio(): ProvisorioFormData {

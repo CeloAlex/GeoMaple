@@ -162,7 +162,7 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
                       </span>
                       {podeEditar && (
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          {p.geom && p.status !== 'convertido' && onConverterParaDefinitivo && (
+                          {p.geom && onConverterParaDefinitivo && (
                             <button
                               onClick={() => onConverterParaDefinitivo(p)}
                               title="Converter em Cadastro Definitivo"

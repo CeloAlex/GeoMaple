@@ -192,6 +192,12 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
           <dt className="text-gray-500">Status</dt>
           <dd className="font-medium text-gray-900">{STATUS_LABEL[imovel.st] ?? imovel.st}</dd>
         </div>
+        <div>
+          <dt className="text-gray-500">Coordenadas do Centro</dt>
+          <dd className="font-medium text-gray-900">
+            {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
+          </dd>
+        </div>
         <BlocoArea
           titulo="Área do Terreno"
           cad={imovel.at_cad}
@@ -245,6 +251,18 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
           <div>
             <dt className="text-gray-500">Nº de pavimentos</dt>
             <dd className="font-medium text-gray-900">{imovel.num_pav}</dd>
+          </div>
+        )}
+        {imovel.cib && (
+          <div>
+            <dt className="text-gray-500">CIB</dt>
+            <dd className="font-medium text-gray-900">{imovel.cib}</dd>
+          </div>
+        )}
+        {imovel.matricula && (
+          <div>
+            <dt className="text-gray-500">Matrícula</dt>
+            <dd className="font-medium text-gray-900">{imovel.matricula}</dd>
           </div>
         )}
         {imovel.frac_ideal && (

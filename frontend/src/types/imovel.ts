@@ -55,6 +55,7 @@ export type ImovelRegistro = {
   ac_aviso_ok: boolean
   num_pav: number | null
   frac_ideal: string | null
+  matricula: string | null
   obs: string | null
   parentId: number | null
   cib: string | null

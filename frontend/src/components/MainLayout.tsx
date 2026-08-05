@@ -63,6 +63,9 @@ export function MainLayout() {
   const [ramosOcultosQuadras, setRamosOcultosQuadras] = useState<Set<string>>(new Set())
   const [geomInicialQuadra, setGeomInicialQuadra] = useState<PolygonGeoJSON | null>(null)
   const [geomInicialProvisorio, setGeomInicialProvisorio] = useState<PolygonGeoJSON | null>(null)
+  // Provisório sendo convertido em Cadastro Definitivo — só é excluído quando o wizard
+  // salva com sucesso (ver onSalvo do CadastroWizard); cancelar o wizard não deve excluí-lo.
+  const [provisorioEmConversaoId, setProvisorioEmConversaoId] = useState<number | null>(null)
 
   function alternarRamo(setRamos: (atualizar: (atual: Set<string>) => Set<string>) => void, chave: string) {
     setRamos((atual) => {
@@ -137,6 +140,7 @@ export function MainLayout() {
 
   function abrirWizardNovo() {
     setGeomParaConversao(null)
+    setProvisorioEmConversaoId(null)
     setWizardAberto(true)
   }
 
@@ -145,16 +149,26 @@ export function MainLayout() {
     setWizardAberto(true)
   }
 
-  // Converte um Provisório já salvo em Cadastro Definitivo: fecha o painel de Provisórios,
+  // Converte um Provisório já salvo em Cadastro Definitivo: fecha o painel de Provisórios e
   // pré-carrega o polígono no wizard (mesmo caminho de converterParaDefinitivo, usado hoje
-  // só para importações) e marca o provisório como convertido, para não sumir do histórico
-  // nem ser convertido de novo por engano.
+  // também para importações). O provisório original só é excluído quando o cadastro
+  // definitivo é efetivamente salvo (ver onSalvo do CadastroWizard, abaixo) — cancelar o
+  // wizard no meio do caminho deve deixar o provisório intacto.
   function converterProvisorioParaDefinitivo(provisorio: Provisorio) {
     if (!provisorio.geom) return
     setProvisoriosAberto(false)
     setGeomInicialProvisorio(null)
+    setProvisorioEmConversaoId(provisorio.id)
     converterParaDefinitivo(provisorio.geom)
-    api.put(`/api/provisorios/${provisorio.id}`, { status: 'convertido' }).then(() => setRecarregarEm((n) => n + 1))
+  }
+
+  function aoSalvarWizard() {
+    if (provisorioEmConversaoId != null) {
+      api.delete(`/api/provisorios/${provisorioEmConversaoId}`).finally(() => setRecarregarEm((n) => n + 1))
+      setProvisorioEmConversaoId(null)
+    } else {
+      setRecarregarEm((n) => n + 1)
+    }
   }
 
   // Importação (KML/KMZ/GeoJSON/Shapefile) → escolha de destino (Sidebar/Ferramentas.tsx):
@@ -292,8 +306,9 @@ export function MainLayout() {
         onClose={() => {
           setWizardAberto(false)
           setGeomParaConversao(null)
+          setProvisorioEmConversaoId(null)
         }}
-        onSalvo={() => setRecarregarEm((n) => n + 1)}
+        onSalvo={aoSalvarWizard}
         geomInicial={geomParaConversao}
       />
       {quadrasAberto && (

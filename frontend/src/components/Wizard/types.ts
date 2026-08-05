@@ -29,6 +29,8 @@ export type WizardFormData = {
   ac_cad: string
   num_pav: string
   frac_ideal: string
+  cib: string
+  matricula: string
   obs: string
   cadurb_tipo: string
   tp_arq: string
@@ -63,6 +65,8 @@ export const FORM_INICIAL: WizardFormData = {
   ac_cad: '',
   num_pav: '',
   frac_ideal: '',
+  cib: '',
+  matricula: '',
   obs: '',
   cadurb_tipo: '',
   tp_arq: '',

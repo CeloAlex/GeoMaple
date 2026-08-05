@@ -3,6 +3,7 @@ import { USO_LABEL, STATUS_LABEL } from '../constants/imovel'
 import { CADURB_TIPO_LABEL, TP_ARQ_LABEL, DEST_LABEL, PADRAO_LABEL } from '../components/Wizard/types'
 import { baixarArquivo, poligonoParaKML } from './download'
 import { mosaicoSatelite } from './fichaMapa'
+import { centroidePoligono } from './geo'
 
 export function exportarImovelGeoJSON(feature: ImovelFeature) {
   const conteudo = JSON.stringify({ type: 'FeatureCollection', features: [feature] }, null, 2)
@@ -30,6 +31,7 @@ function inconsistente(cad: number | null, geo: number | null, avisoOk: boolean)
 export function imprimirFichaCadastral(feature: ImovelSelecionado, municipioNome: string, municipioUf: string) {
   const im = feature.properties
   const mapa = mosaicoSatelite(feature.geometry.coordinates[0])
+  const centro = centroidePoligono(feature.geometry)
 
   const linhasArea: string[] = []
   if (im.at_cad != null) linhasArea.push(`<tr><td class="label">Área do Terreno Cadastral</td><td>${formatarAreaM2(im.at_cad)}</td></tr>`)
@@ -88,8 +90,10 @@ export function imprimirFichaCadastral(feature: ImovelSelecionado, municipioNome
     <tr><td class="label">Proprietário</td><td>${im.prop}</td></tr>
     <tr><td class="label">Uso</td><td>${USO_LABEL[im.uso] ?? im.uso}</td></tr>
     <tr><td class="label">Status</td><td>${STATUS_LABEL[im.st] ?? im.st}</td></tr>
+    <tr><td class="label">Coordenadas do Centro</td><td>${centro.lat.toFixed(6)}, ${centro.lng.toFixed(6)}</td></tr>
     ${linhasAreaHtml}
     ${im.cib ? `<tr><td class="label">CIB</td><td>${im.cib}</td></tr>` : ''}
+    ${im.matricula ? `<tr><td class="label">Matrícula</td><td>${im.matricula}</td></tr>` : ''}
     ${linhasExtrasHtml}
   </table>
   <p id="aviso-tiles" class="rodape" style="display:none;color:#b45309"></p>

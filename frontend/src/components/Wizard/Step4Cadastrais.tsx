@@ -80,11 +80,29 @@ export function Step4Cadastrais({ form, set }: Props) {
         </div>
       )}
 
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">CIB</label>
+          <input
+            value={form.cib}
+            onChange={(e) => set('cib', e.target.value)}
+            placeholder="Atribuído automaticamente pelo SINTER, ou informe manualmente"
+            className="w-full rounded border border-gray-300 px-3 py-2 focus:border-verde focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">Matrícula do imóvel</label>
+          <input
+            value={form.matricula}
+            onChange={(e) => set('matricula', e.target.value)}
+            placeholder="Nº de matrícula no Registro de Imóveis"
+            className="w-full rounded border border-gray-300 px-3 py-2 focus:border-verde focus:outline-none"
+          />
+        </div>
+      </div>
+
       <div className="rounded-lg border border-gray-200 p-4">
         <p className="mb-3 text-xs font-semibold text-navy">Campos SINTER / CADURB</p>
-        <p className="mb-3 text-xs text-gray-500">
-          O CIB é atribuído automaticamente pela integração com o SINTER após a transmissão.
-        </p>
 
         <div className="grid grid-cols-3 gap-3">
           <Select

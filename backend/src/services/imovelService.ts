@@ -23,6 +23,7 @@ export const CAMPOS_CRIACAO = [
   'ac_aviso_ok',
   'num_pav',
   'frac_ideal',
+  'matricula',
   'obs',
   'parentId',
   'cib',

@@ -28,6 +28,7 @@ model Imovel {
   ac_aviso_ok Boolean @default(false) // idem, para ac_cad/ac_geo
   num_pav    Int? // número de pavimentos
   frac_ideal String? // fração ideal (ex: "1/4")
+  matricula  String? // matrícula do imóvel no Registro de Imóveis
   obs        String?
   geo_dt     DateTime? // data do georreferenciamento
   ativo      Boolean   @default(true)
