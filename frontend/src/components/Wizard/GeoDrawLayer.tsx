@@ -4,6 +4,7 @@ import L from 'leaflet'
 import 'leaflet-draw'
 import type { PolygonGeoJSON } from '../../types/imovel'
 import { poligonoParaLatLngs, layerParaPoligono, calcularArea } from '../Map/geoDrawUtils'
+import { instrumentarDesenhoDebug } from '../Map/debugDesenho'
 
 export type TipoDesenho = 'terreno' | 'edificacao'
 
@@ -56,6 +57,7 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
       })
       desenhoAtivoRef.current = desenho
       desenho.enable()
+      instrumentarDesenhoDebug(desenho, map, `terreno-${tipo}`)
     },
     finalizarDesenho() {
       // Fecha o polígono em desenho explicitamente (>= 3 vértices) — complementa o

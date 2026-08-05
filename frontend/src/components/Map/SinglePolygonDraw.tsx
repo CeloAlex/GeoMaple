@@ -4,6 +4,7 @@ import L from 'leaflet'
 import 'leaflet-draw'
 import type { PolygonGeoJSON } from '../../types/imovel'
 import { poligonoParaLatLngs, layerParaPoligono, calcularArea } from './geoDrawUtils'
+import { instrumentarDesenhoDebug } from './debugDesenho'
 
 export type SinglePolygonHandle = {
   iniciarDesenho: () => void
@@ -43,6 +44,7 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
       })
       desenhoAtivoRef.current = desenho
       desenho.enable()
+      instrumentarDesenhoDebug(desenho, map, 'single')
     },
     finalizarDesenho() {
       // Fecha o polígono em desenho explicitamente (>= 3 vértices) — complementa o
