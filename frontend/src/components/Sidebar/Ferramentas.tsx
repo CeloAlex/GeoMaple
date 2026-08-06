@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ImovelFeatureCollection } from '../../types/imovel'
 import type { CamadaImportada } from '../../utils/importarGeo'
 import { importarArquivo } from '../../utils/importarGeo'
 import { baixarArquivo, linhasParaCSV } from '../../utils/download'
-import { baseUrlWms } from '../../utils/wms'
 import type { CamadaWms } from '../Map/MapView'
 
 export type DestinoImportacao = 'cadastro' | 'provisorio' | 'quadra'
@@ -14,9 +13,9 @@ type Props = {
   onImportar: (camada: CamadaImportada) => void
   onLimparImportadas: () => void
   camadasWms: CamadaWms[]
-  onAdicionarWms: (camada: CamadaWms) => void
   onRemoverWms: (id: string) => void
-  abrirFormularioEm?: number
+  onAtualizarWms: (id: string, patch: Partial<Pick<CamadaWms, 'ativa' | 'opacidade'>>) => void
+  onAbrirCatalogoWms: () => void
   onErro?: (msg: string) => void
   // Ao importar um arquivo com pelo menos um polígono, pergunta o destino (cadastro,
   // provisório ou quadra) — a geometria substitui a etapa de desenho manual na tela
@@ -50,23 +49,14 @@ export function Ferramentas({
   onImportar,
   onLimparImportadas,
   camadasWms,
-  onAdicionarWms,
   onRemoverWms,
-  abrirFormularioEm,
+  onAtualizarWms,
+  onAbrirCatalogoWms,
   onErro,
   onEscolherDestinoImportacao,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [wmsAberto, setWmsAberto] = useState(false)
   const [camadaPendente, setCamadaPendente] = useState<CamadaImportada | null>(null)
-
-  useEffect(() => {
-    if (abrirFormularioEm) setWmsAberto(true)
-  }, [abrirFormularioEm])
-  const [wmsNome, setWmsNome] = useState('')
-  const [wmsUrl, setWmsUrl] = useState('')
-  const [wmsLayers, setWmsLayers] = useState('')
-  const [wmsVersion, setWmsVersion] = useState<'1.1.1' | '1.3.0'>('1.1.1')
 
   async function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = e.target.files?.[0]
@@ -98,22 +88,6 @@ export function Ferramentas({
     if (!camadaPendente) return
     onImportar(camadaPendente)
     setCamadaPendente(null)
-  }
-
-  function adicionarWms() {
-    if (!wmsUrl.trim() || !wmsLayers.trim()) return
-    onAdicionarWms({
-      id: crypto.randomUUID(),
-      nome: wmsNome.trim() || wmsLayers.trim(),
-      url: baseUrlWms(wmsUrl.trim()),
-      layers: wmsLayers.trim(),
-      version: wmsVersion,
-    })
-    setWmsNome('')
-    setWmsUrl('')
-    setWmsLayers('')
-    setWmsVersion('1.1.1')
-    setWmsAberto(false)
   }
 
   return (
@@ -184,66 +158,42 @@ export function Ferramentas({
       )}
 
       <button
-        onClick={() => setWmsAberto((a) => !a)}
+        onClick={onAbrirCatalogoWms}
         className="w-full rounded border border-white/20 py-1.5 text-xs text-white/80 hover:bg-white/10"
       >
         🌐 Adicionar camada WMS
       </button>
 
-      {wmsAberto && (
-        <div className="space-y-1.5 rounded border border-white/10 bg-white/5 p-2">
-          <input
-            value={wmsNome}
-            onChange={(e) => setWmsNome(e.target.value)}
-            placeholder="Nome de exibição (opcional)"
-            className="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white placeholder:text-white/40 focus:border-verde focus:outline-none"
-          />
-          <input
-            value={wmsUrl}
-            onChange={(e) => setWmsUrl(e.target.value)}
-            placeholder="URL do serviço WMS"
-            className="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white placeholder:text-white/40 focus:border-verde focus:outline-none"
-          />
-          <p className="text-[10px] text-white/40">
-            Use a URL base do serviço, sem parâmetros (ex.: .../geoserver/wms) — não cole uma URL de GetCapabilities.
-          </p>
-          <input
-            value={wmsLayers}
-            onChange={(e) => setWmsLayers(e.target.value)}
-            placeholder="Nome técnico da(s) layer(s)"
-            className="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white placeholder:text-white/40 focus:border-verde focus:outline-none"
-          />
-          <select
-            value={wmsVersion}
-            onChange={(e) => setWmsVersion(e.target.value as '1.1.1' | '1.3.0')}
-            className="w-full rounded border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white focus:border-verde focus:outline-none"
-          >
-            <option value="1.1.1" className="text-black">Versão WMS 1.1.1 (padrão)</option>
-            <option value="1.3.0" className="text-black">Versão WMS 1.3.0</option>
-          </select>
-          <button
-            onClick={adicionarWms}
-            disabled={!wmsUrl.trim() || !wmsLayers.trim()}
-            className="w-full rounded bg-verde py-1 text-[11px] font-medium text-white hover:bg-verde/90 disabled:opacity-40"
-          >
-            Adicionar ao mapa
-          </button>
-        </div>
-      )}
-
       {camadasWms.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {camadasWms.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center justify-between rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/60"
-            >
-              <span className="truncate" title={c.nome}>
-                🌐 {c.nome}
-              </span>
-              <button onClick={() => onRemoverWms(c.id)} className="ml-2 shrink-0 text-white/50 hover:text-white">
-                🗑️
-              </button>
+            <div key={c.id} className="space-y-1 rounded bg-white/5 px-2 py-1.5 text-[11px] text-white/60">
+              <div className="flex items-center justify-between gap-2">
+                <label className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={c.ativa !== false}
+                    onChange={(e) => onAtualizarWms(c.id, { ativa: e.target.checked })}
+                  />
+                  <span className="truncate" title={c.nome}>
+                    🌐 {c.nome}
+                  </span>
+                </label>
+                <button onClick={() => onRemoverWms(c.id)} className="ml-2 shrink-0 text-white/50 hover:text-white">
+                  🗑️
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 pl-5">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={c.opacidade ?? 100}
+                  onChange={(e) => onAtualizarWms(c.id, { opacidade: Number(e.target.value) })}
+                  className="h-1 flex-1 accent-verde"
+                />
+                <span className="w-8 shrink-0 text-right text-white/50">{c.opacidade ?? 100}%</span>
+              </div>
             </div>
           ))}
         </div>

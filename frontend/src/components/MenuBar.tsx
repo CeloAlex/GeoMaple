@@ -69,10 +69,7 @@ export function MenuBar(acoes: AcoesShell) {
     },
     {
       label: 'GeoNetwork',
-      itens: [
-        { label: 'Abrir catálogo GeoNetwork', onClick: acoes.onAbrirCatalogoGeoNetwork },
-        { label: 'Adicionar WMS manualmente', onClick: acoes.onAdicionarWms },
-      ],
+      itens: [{ label: 'Adicionar camada WMS', onClick: acoes.onAbrirCatalogoGeoNetwork }],
     },
     {
       label: 'Ajuda',

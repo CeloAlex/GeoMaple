@@ -1,49 +1,51 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
-import type { Provisorio } from '../../types/provisorio'
-import type { PolygonGeoJSON } from '../../types/imovel'
-import { ProvisorioForm } from './ProvisorioForm'
-import { TIPO_LABEL, STATUS_LABEL, formVazio, provisorioParaForm, type ProvisorioFormData } from './types'
+import type { Logradouro } from '../../types/logradouro'
+import { LogradouroForm } from './LogradouroForm'
+import { TIPO_LABEL, SITUACAO_LABEL, formVazio, logradouroParaForm, type LogradouroFormData } from './types'
 
 type Props = {
   onClose: () => void
   onAlterado: () => void
-  onSelecionar?: (provisorio: Provisorio) => void
-  // Pré-carrega o polígono de uma geometria importada (KML/KMZ/Shapefile) direto no
-  // formulário de nova delimitação, substituindo a etapa de desenho manual.
-  geomInicial?: PolygonGeoJSON | null
-  // Converte um Provisório já salvo em Cadastro Definitivo — pré-carrega o polígono no
-  // wizard de novo cadastro (mesmo caminho usado para converter geometrias importadas).
-  onConverterParaDefinitivo?: (provisorio: Provisorio) => void
+  onSelecionar?: (logradouro: Logradouro) => void
 }
 
-function payload(form: ProvisorioFormData) {
+function payload(form: LogradouroFormData) {
   return {
     nome: form.nome.trim(),
     tipo: form.tipo,
-    status: form.status,
+    bairros: form.bairros
+      .split(',')
+      .map((b) => b.trim())
+      .filter(Boolean),
+    cep: form.cep || undefined,
+    distrito: form.distrito || undefined,
+    leiNumero: form.leiNumero || undefined,
+    leiData: form.leiData || undefined,
+    leiLink: form.leiLink || undefined,
+    situacao: form.situacao,
     obs: form.obs || undefined,
     geom: form.geom ?? undefined,
   }
 }
 
-export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicial, onConverterParaDefinitivo }: Props) {
+export function LogradourosPanel({ onClose, onAlterado, onSelecionar }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
 
-  const [lista, setLista] = useState<Provisorio[]>([])
+  const [lista, setLista] = useState<Logradouro[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  const [modo, setModo] = useState<'lista' | 'nova' | number>(geomInicial ? 'nova' : 'lista')
-  const [confirmando, setConfirmando] = useState<Provisorio | null>(null)
+  const [modo, setModo] = useState<'lista' | 'nova' | number>('lista')
+  const [confirmando, setConfirmando] = useState<Logradouro | null>(null)
   const [busca, setBusca] = useState('')
 
   const carregar = useCallback(async () => {
     setCarregando(true)
     setErro(null)
     try {
-      const { data } = await api.get<Provisorio[]>('/api/provisorios')
+      const { data } = await api.get<Logradouro[]>('/api/logradouros')
       setLista(data)
     } catch (err) {
       setErro((err as { response?: { data?: { erro?: string } } })?.response?.data?.erro ?? 'Falha ao carregar')
@@ -56,15 +58,15 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
     carregar()
   }, [carregar])
 
-  async function criar(dados: ProvisorioFormData) {
-    await api.post('/api/provisorios', payload(dados))
+  async function criar(dados: LogradouroFormData) {
+    await api.post('/api/logradouros', payload(dados))
     setModo('lista')
     await carregar()
     onAlterado()
   }
 
-  async function editar(id: number, dados: ProvisorioFormData) {
-    await api.put(`/api/provisorios/${id}`, payload(dados))
+  async function editar(id: number, dados: LogradouroFormData) {
+    await api.put(`/api/logradouros/${id}`, payload(dados))
     setModo('lista')
     await carregar()
     onAlterado()
@@ -73,7 +75,7 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
   async function confirmarExclusao() {
     if (!confirmando) return
     try {
-      await api.delete(`/api/provisorios/${confirmando.id}`)
+      await api.delete(`/api/logradouros/${confirmando.id}`)
       setConfirmando(null)
       await carregar()
       onAlterado()
@@ -83,12 +85,12 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
     }
   }
 
-  const editando = typeof modo === 'number' ? lista.find((p) => p.id === modo) : undefined
+  const editando = typeof modo === 'number' ? lista.find((l) => l.id === modo) : undefined
 
   const termo = busca.trim().toLocaleLowerCase('pt-BR')
   const listaFiltrada = termo
-    ? lista.filter((p) =>
-        [p.nome, TIPO_LABEL[p.tipo] ?? p.tipo, STATUS_LABEL[p.status] ?? p.status]
+    ? lista.filter((l) =>
+        [l.nome, TIPO_LABEL[l.tipo] ?? l.tipo, SITUACAO_LABEL[l.situacao] ?? l.situacao, ...l.bairros]
           .join(' ')
           .toLocaleLowerCase('pt-BR')
           .includes(termo),
@@ -99,7 +101,7 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
       <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
-          <h2 className="text-base font-semibold text-navy">🚧 Delimitações Provisórias</h2>
+          <h2 className="text-base font-semibold text-navy">🛣️ Cadastro de Logradouros</h2>
           <button onClick={onClose} aria-label="Fechar" className="text-lg text-gray-400 hover:text-gray-700">
             ✕
           </button>
@@ -132,7 +134,7 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
                   onClick={() => setModo('nova')}
                   className="mb-4 w-full rounded border border-dashed border-navy py-2 text-sm text-navy hover:bg-navy/5"
                 >
-                  + Nova Delimitação
+                  + Novo Logradouro
                 </button>
               )}
 
@@ -140,50 +142,42 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
                 <input
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar por nome, tipo ou status…"
+                  placeholder="Buscar por nome, tipo, situação ou bairro…"
                   className="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm text-navy placeholder:text-gray-400 focus:border-navy focus:outline-none"
                 />
               )}
               {lista.length === 0 ? (
-                <p className="rounded bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
-                  Nenhuma delimitação provisória cadastrada.
-                </p>
+                <p className="rounded bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">Nenhum logradouro cadastrado.</p>
               ) : listaFiltrada.length === 0 ? (
                 <p className="rounded bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
-                  Nenhuma delimitação encontrada para "{busca}".
+                  Nenhum logradouro encontrado para "{busca}".
                 </p>
               ) : (
                 <ul className="divide-y divide-gray-100 rounded border border-gray-100">
-                  {listaFiltrada.map((p) => (
+                  {listaFiltrada.map((l) => (
                     <li
-                      key={p.id}
-                      onClick={() => p.geom && onSelecionar?.(p)}
-                      className={`flex items-center gap-3 p-3 ${p.geom && onSelecionar ? 'cursor-pointer hover:bg-navy/5' : ''}`}
+                      key={l.id}
+                      onClick={() => l.geom && onSelecionar?.(l)}
+                      className={`flex items-center gap-3 p-3 ${l.geom && onSelecionar ? 'cursor-pointer hover:bg-navy/5' : ''}`}
                     >
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-navy">{p.nome}</p>
+                        <p className="text-sm font-semibold text-navy">
+                          {TIPO_LABEL[l.tipo] ?? l.tipo} {l.nome}
+                        </p>
                         <p className="text-xs text-gray-500">
-                          {TIPO_LABEL[p.tipo] ?? p.tipo} · {STATUS_LABEL[p.status] ?? p.status}
+                          {SITUACAO_LABEL[l.situacao] ?? l.situacao}
+                          {l.bairros.length > 0 ? ` · ${l.bairros.join(', ')}` : ''}
                         </p>
                       </div>
-                      <span className={p.geom ? 'text-xs text-verde' : 'text-xs text-gray-400'}>
-                        {p.geom ? '✅ georreferenciada' : '— sem polígono'}
+                      <span className={l.geom ? 'text-xs text-verde' : 'text-xs text-gray-400'}>
+                        {l.geom ? '✅ georreferenciado' : '— sem eixo'}
                       </span>
                       {podeEditar && (
                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          {p.geom && onConverterParaDefinitivo && (
-                            <button
-                              onClick={() => onConverterParaDefinitivo(p)}
-                              title="Converter em Cadastro Definitivo"
-                              className="rounded bg-verde px-2 py-1 text-xs text-white hover:bg-verde/90"
-                            >
-                              ➡️
-                            </button>
-                          )}
-                          <button onClick={() => setModo(p.id)} className="rounded bg-navy px-2 py-1 text-xs text-white hover:bg-navy/90">
+                          <button onClick={() => setModo(l.id)} className="rounded bg-navy px-2 py-1 text-xs text-white hover:bg-navy/90">
                             ✏️
                           </button>
-                          <button onClick={() => setConfirmando(p)} className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700">
+                          <button onClick={() => setConfirmando(l)} className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700">
                             🗑️
                           </button>
                         </div>
@@ -196,18 +190,14 @@ export function ProvisoriosPanel({ onClose, onAlterado, onSelecionar, geomInicia
           )}
 
           {!carregando && modo === 'nova' && (
-            <ProvisorioForm
-              titulo="Nova Delimitação Provisória"
-              inicial={{ ...formVazio(), geom: geomInicial ?? null }}
-              onSalvar={criar}
-              onCancelar={() => setModo('lista')}
-            />
+            <LogradouroForm titulo="Novo Logradouro" inicial={formVazio()} onSalvar={criar} onCancelar={() => setModo('lista')} />
           )}
 
           {!carregando && editando && (
-            <ProvisorioForm
+            <LogradouroForm
               titulo={`Editar ${editando.nome}`}
-              inicial={provisorioParaForm(editando)}
+              id={editando.id}
+              inicial={logradouroParaForm(editando)}
               onSalvar={(dados) => editar(editando.id, dados)}
               onCancelar={() => setModo('lista')}
             />

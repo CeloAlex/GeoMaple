@@ -39,8 +39,9 @@ export function Toolbar(acoes: AcoesShell) {
       { icone: '👤', dica: 'Usuários e permissões', onClick: acoes.onOperadores, destaque: 'bg-[#1a6a8a]/25 border-[#1a6a8a]' },
     ],
     [
-      { icone: '⬡', dica: 'Ajuste topológico', onClick: indisponivel('Ainda não implementado (Fase B)'), destaque: 'bg-ua/20 border-ua' },
+      { icone: '⬡', dica: 'Ajuste topológico', onClick: acoes.onAjusteTopologico, destaque: 'bg-ua/20 border-ua' },
       { icone: '🗂️', dica: 'Quadras Georreferenciadas', onClick: acoes.onQuadras, destaque: 'bg-ambar/20 border-ambar' },
+      { icone: '🛣️', dica: 'Cadastro de Logradouros', onClick: acoes.onLogradouros, destaque: 'bg-ua/20 border-ua' },
       { icone: '🔄', dica: 'Converter feições KML em Cadastros', onClick: acoes.onConverterImportados, destaque: 'bg-verde/20 border-verde' },
     ],
   ]

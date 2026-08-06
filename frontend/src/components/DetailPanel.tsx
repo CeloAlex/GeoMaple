@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { ImovelRegistro, ImovelSelecionado, PolygonGeoJSON } from '../types/imovel'
+import type { ConflitoGeometria, ImovelRegistro, ImovelSelecionado, PolygonGeoJSON } from '../types/imovel'
 import { useAuthStore } from '../store/authStore'
 import { useMunicipioStore } from '../store/municipioStore'
 import { centroidePoligono } from '../utils/geo'
@@ -84,9 +84,10 @@ type Props = {
   feature: ImovelSelecionado | null
   onClose: () => void
   onAlterado: () => void
+  onConflitoGeometria?: (conflitos: ConflitoGeometria[]) => void
 }
 
-export function DetailPanel({ feature, onClose, onAlterado }: Props) {
+export function DetailPanel({ feature, onClose, onAlterado, onConflitoGeometria }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
   const municipio = useMunicipioStore((s) => s.municipio)
   const podeEditar = usuario?.perm === 'admin' || usuario?.perm === 'editor'
@@ -431,11 +432,15 @@ export function DetailPanel({ feature, onClose, onAlterado }: Props) {
       {editarAberto && (
         <EditarImovelPanel
           imovelId={imovel.id}
-          onClose={() => setEditarAberto(false)}
+          onClose={() => {
+            setEditarAberto(false)
+            onConflitoGeometria?.([])
+          }}
           onSalvo={() => {
             onAlterado()
             onClose()
           }}
+          onConflitoGeometria={onConflitoGeometria}
         />
       )}
 

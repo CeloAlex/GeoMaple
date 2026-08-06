@@ -13,7 +13,7 @@ function fmtArea(m2: number) {
 type Props = {
   // Contador incrementado externamente (Toolbar/MenuBar "Régua: área") para iniciar a
   // medição sem exigir que o usuário clique no botão do mapa — mesmo padrão de ponte já
-  // usado para abrir o formulário de WMS (MainLayout `wmsFormEm`/Ferramentas.tsx).
+  // usado por outros contadores de comando (MainLayout `medirDistanciaEm`/`fitTodosEm`).
   iniciarEm?: number
 }
 

@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import 'leaflet-draw'
 import type { PolygonGeoJSON } from '../../types/imovel'
+import type { LineStringGeoJSON } from '../../types/logradouro'
 import { parseDMS, parseUTM, type SistemaCoord } from '../../utils/coords'
 
 export function poligonoParaLatLngs(geom: PolygonGeoJSON): L.LatLngExpression[] {
@@ -17,6 +18,24 @@ export function layerParaPoligono(layer: L.Polygon): PolygonGeoJSON {
 
 export function calcularArea(layer: L.Polygon): number {
   return L.GeometryUtil.geodesicArea(layer.getLatLngs()[0] as L.LatLng[])
+}
+
+// Equivalentes de poligonoParaLatLngs/layerParaPoligono/calcularArea para o eixo de um
+// logradouro (LineString aberta, sem fechamento de anel) — usados por SingleLineDraw.tsx.
+export function linhaParaLatLngs(geom: LineStringGeoJSON): L.LatLngExpression[] {
+  return geom.coordinates.map(([lng, lat]) => [lat, lng])
+}
+
+export function layerParaLinha(layer: L.Polyline): LineStringGeoJSON {
+  const pontos = layer.getLatLngs() as L.LatLng[]
+  return { type: 'LineString', coordinates: pontos.map((p): [number, number] => [p.lng, p.lat]) }
+}
+
+export function calcularComprimento(layer: L.Polyline, map: L.Map): number {
+  const pontos = layer.getLatLngs() as L.LatLng[]
+  let total = 0
+  for (let i = 1; i < pontos.length; i++) total += map.distance(pontos[i - 1], pontos[i])
+  return total
 }
 
 // Parseia uma lista de coordenadas colada pelo operador (uma por linha), no sistema

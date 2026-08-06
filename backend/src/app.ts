@@ -10,6 +10,8 @@ import configRoutes from './routes/config'
 import quadraRoutes from './routes/quadras'
 import provisorioRoutes from './routes/provisorios'
 import geonetworkRoutes from './routes/geonetwork'
+import logradouroRoutes from './routes/logradouros'
+import certidaoRoutes from './routes/certidoes'
 
 const app = express()
 
@@ -33,5 +35,7 @@ app.use('/api/sinter', sinterRoutes)
 app.use('/api/quadras', quadraRoutes)
 app.use('/api/provisorios', provisorioRoutes)
 app.use('/api/geonetwork', geonetworkRoutes)
+app.use('/api/logradouros', logradouroRoutes)
+app.use('/api/certidoes', certidaoRoutes)
 
 export default app

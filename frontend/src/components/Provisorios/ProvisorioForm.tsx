@@ -30,7 +30,6 @@ export function ProvisorioForm({ titulo, inicial, onSalvar, onCancelar }: Props)
   const [erro, setErro] = useState<string | null>(null)
   const drawRef = useRef<SinglePolygonHandle>(null)
   const [expandido, setExpandido] = useState(false)
-  const [snapAtivo, setSnapAtivo] = useState(true)
 
   function set<K extends keyof ProvisorioFormData>(campo: K, valor: ProvisorioFormData[K]) {
     setForm((f) => ({ ...f, [campo]: valor }))
@@ -125,16 +124,6 @@ export function ProvisorioForm({ titulo, inicial, onSalvar, onCancelar }: Props)
           >
             ✅ Concluir polígono
           </button>
-          <button
-            type="button"
-            onClick={() => setSnapAtivo((a) => !a)}
-            title="Encaixar vértices automaticamente nos lotes confrontantes"
-            className={`rounded border px-3 py-1.5 text-xs font-medium ${
-              snapAtivo ? 'border-navy bg-navy/5 text-navy' : 'border-gray-300 text-gray-400'
-            }`}
-          >
-            🧲 Ajuste Topológico {snapAtivo ? 'ligado' : 'desligado'}
-          </button>
           <ColarCoordenadas onAplicar={(pontos) => drawRef.current?.criarDePontos(pontos)} />
         </div>
         <MapaExpansivel expandido={expandido} onToggle={() => setExpandido((e) => !e)} alturaNormal="h-64">
@@ -154,7 +143,6 @@ export function ProvisorioForm({ titulo, inicial, onSalvar, onCancelar }: Props)
                 set('geom', geom)
                 setArea(areaM2)
               }}
-              snapAtivo={snapAtivo}
               ref={drawRef}
             />
             <InvalidateSizeAoMudar watch={expandido} />

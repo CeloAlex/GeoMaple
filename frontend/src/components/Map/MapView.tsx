@@ -5,12 +5,14 @@ import { api } from '../../api/client'
 import type { ImovelFeature, ImovelFeatureCollection } from '../../types/imovel'
 import type { Quadra } from '../../types/quadra'
 import type { Provisorio } from '../../types/provisorio'
+import type { Logradouro } from '../../types/logradouro'
 import type { CamadaImportada } from '../../utils/importarGeo'
 import { useMunicipioStore } from '../../store/municipioStore'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from './constants'
 import { Regua } from './Regua'
 import { ReguaArea } from './ReguaArea'
 import { PontoGeorreferenciado } from './PontoGeorreferenciado'
+import { AjusteTopologicoTool } from './AjusteTopologicoTool'
 import { Legend } from './Legend'
 import { StatusBar } from './StatusBar'
 import { aplicarLocalePtBr } from './leafletDrawLocale'
@@ -20,7 +22,15 @@ import L from 'leaflet'
 aplicarLocalePtBr()
 
 export type Destino = { lat: number; lng: number; zoom?: number }
-export type CamadaWms = { id: string; nome: string; url: string; layers: string; version?: '1.1.1' | '1.3.0' }
+export type CamadaWms = {
+  id: string
+  nome: string
+  url: string
+  layers: string
+  version?: '1.1.1' | '1.3.0'
+  ativa?: boolean
+  opacidade?: number
+}
 
 const VAZIO: ImovelFeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -109,6 +119,56 @@ function CamadaProvisorios({ recarregarEm, selecionadoId }: { recarregarEm?: num
 
   return (
     // Mesmo motivo do fix acima em CamadaQuadras: key precisa refletir a geometria.
+    <GeoJSON
+      key={JSON.stringify(fc)}
+      data={fc as never}
+      style={estilo as never}
+      onEachFeature={(feature, layer: Layer) => {
+        layer.bindTooltip(feature.properties.label)
+      }}
+    />
+  )
+}
+
+function CamadaLogradouros({
+  recarregarEm,
+  selecionadoId,
+  ramosOcultos,
+}: {
+  recarregarEm?: number
+  selecionadoId?: number | null
+  ramosOcultos?: Set<string>
+}) {
+  const [lista, setLista] = useState<Logradouro[]>([])
+
+  useEffect(() => {
+    api
+      .get<Logradouro[]>('/api/logradouros')
+      .then(({ data }) => setLista(data))
+      .catch(() => {
+        // Falha ao carregar logradouros não deve travar o mapa
+      })
+  }, [recarregarEm])
+
+  const fc = {
+    type: 'FeatureCollection' as const,
+    features: lista
+      .filter((l) => l.geom && !(ramosOcultos && ramosOcultos.has(String(l.id))))
+      .map((l) => ({
+        type: 'Feature' as const,
+        geometry: l.geom!,
+        properties: { id: l.id, label: l.nome },
+      })),
+  }
+
+  function estilo(feature?: { properties: { id: number } }): PathOptions {
+    if (feature?.properties.id === selecionadoId) {
+      return { color: '#f1c40f', weight: 5 }
+    }
+    return { color: '#16a085', weight: 4 }
+  }
+
+  return (
     <GeoJSON
       key={JSON.stringify(fc)}
       data={fc as never}
@@ -247,7 +307,7 @@ function FitTodos({ comandoEm, dados }: { comandoEm?: number; dados: ImovelFeatu
 // Sem tratamento de tileerror o Leaflet só mostra tiles em branco quando o servidor
 // retorna uma ServiceException (nome técnico errado, versão incompatível etc.), sem
 // nenhum aviso — o operador só percebe que "não fez nada" ao ativar a camada.
-function CamadaWmsLayer({ camada, onErro }: { camada: CamadaWms; onErro?: (nome: string) => void }) {
+function CamadaWmsLayer({ camada, zIndex, onErro }: { camada: CamadaWms; zIndex: number; onErro?: (nome: string) => void }) {
   const avisadoRef = useRef(false)
 
   return (
@@ -256,6 +316,8 @@ function CamadaWmsLayer({ camada, onErro }: { camada: CamadaWms; onErro?: (nome:
       layers={camada.layers}
       format="image/png"
       transparent
+      opacity={(camada.opacidade ?? 100) / 100}
+      zIndex={zIndex}
       version={camada.version ?? '1.1.1'}
       eventHandlers={{
         tileerror: () => {
@@ -291,13 +353,21 @@ type Props = {
   fitTodosEm?: number
   quadraSelecionadaId?: number | null
   provisorioSelecionadoId?: number | null
+  logradouroSelecionadoId?: number | null
   onWmsErro?: (nomeCamada: string) => void
   medirDistanciaEm?: number
   medirAreaEm?: number
+  ajusteTopologicoEm?: number
+  onAjusteTopologicoSalvo?: () => void
+  onAjusteTopologicoErro?: (msg: string) => void
   // Independentes: uma árvore controla a camada de Cadastros (imóveis), a outra a de
   // Quadras (Sidebar/ArvoreCadastros.tsx e ArvoreQuadras.tsx) — ver MainLayout.tsx.
   ramosOcultosCadastros?: Set<string>
   ramosOcultosQuadras?: Set<string>
+  ramosOcultosLogradouros?: Set<string>
+  // Imóveis destacados em vermelho por sobrepor a geometria em edição no wizard/painel de
+  // edição (409 em PUT .../geometria) — ver MainLayout.tsx `conflitosGeometria`.
+  idsConflitoGeometria?: number[]
 }
 
 export function MapView({
@@ -311,11 +381,17 @@ export function MapView({
   fitTodosEm,
   quadraSelecionadaId,
   provisorioSelecionadoId,
+  logradouroSelecionadoId,
   onWmsErro,
   medirDistanciaEm,
   medirAreaEm,
+  ajusteTopologicoEm,
+  onAjusteTopologicoSalvo,
+  onAjusteTopologicoErro,
   ramosOcultosCadastros,
   ramosOcultosQuadras,
+  ramosOcultosLogradouros,
+  idsConflitoGeometria,
 }: Props) {
   const [dados, setDados] = useState<ImovelFeatureCollection>(VAZIO)
   const centro = useMunicipioStore((s) => s.municipio.centro)
@@ -327,6 +403,10 @@ export function MapView({
   }, [dados])
 
   function estiloFeature(feature?: ImovelFeature): PathOptions {
+    const emConflito = !!feature && idsConflitoGeometria?.includes(feature.properties.id)
+    if (emConflito) {
+      return { color: '#e74c3c', weight: 3, fillColor: '#e74c3c', fillOpacity: 0.4, dashArray: '4,3' }
+    }
     const selecionado = feature?.properties.id === selecionadoId
     if (selecionado) {
       return { color: '#f1c40f', weight: 3, fillColor: '#f1c40f', fillOpacity: 0.35 }
@@ -374,6 +454,9 @@ export function MapView({
         <LayersControl.Overlay checked name="Delimitações provisórias">
           <CamadaProvisorios recarregarEm={recarregarEm} selecionadoId={provisorioSelecionadoId} />
         </LayersControl.Overlay>
+        <LayersControl.Overlay checked name="Logradouros">
+          <CamadaLogradouros recarregarEm={recarregarEm} selecionadoId={logradouroSelecionadoId} ramosOcultos={ramosOcultosLogradouros} />
+        </LayersControl.Overlay>
         <LayersControl.Overlay checked name="Imóveis">
           <GeoJSON
             key={imoveisVisiveisPorRamo.features.map((f) => f.properties.id).join(',')}
@@ -389,12 +472,16 @@ export function MapView({
             <CamadasImportadas camadas={camadasImportadas} />
           </LayersControl.Overlay>
         )}
-        {camadasWms?.map((c) => (
-          <LayersControl.Overlay key={c.id} checked name={c.nome}>
-            <CamadaWmsLayer camada={c} onErro={onWmsErro} />
-          </LayersControl.Overlay>
-        ))}
       </LayersControl>
+      {/* Camadas WMS têm liga/desliga e opacidade próprios (lista em Sidebar/Ferramentas.tsx)
+          em vez do checkbox nativo do LayersControl — cada camada é controlada
+          individualmente ali, não faz sentido duplicar esse controle aqui. zIndex explícito
+          (>= 10) garante que fiquem acima da base/Quadras/Provisórios/Imóveis — o
+          LayersControl atribui zIndex próprio às suas camadas (até ~7 hoje) e não dá pra
+          contar com a ordem de montagem no DOM para isso. */}
+      {camadasWms
+        ?.filter((c) => c.ativa !== false)
+        .map((c, i) => <CamadaWmsLayer key={c.id} camada={c} zIndex={10 + i} onErro={onWmsErro} />)}
       {/* Container único para os controles fixos do canto superior esquerdo do mapa —
           empilhados em fluxo normal (não cada um com `top` absoluto próprio), para que o
           badge de resultado da régua nunca fique embaixo do botão seguinte. */}
@@ -404,6 +491,12 @@ export function MapView({
         <ReguaArea iniciarEm={medirAreaEm} />
         <PontoGeorreferenciado />
       </div>
+      <AjusteTopologicoTool
+        iniciarEm={ajusteTopologicoEm}
+        imoveis={imoveisVisiveisPorRamo}
+        onSalvo={onAjusteTopologicoSalvo}
+        onErro={onAjusteTopologicoErro}
+      />
       <Voador destino={voarPara ?? null} />
       <FitTodos comandoEm={fitTodosEm} dados={dados} />
       <BuscadorDeImoveis onData={setDados} recarregarEm={recarregarEm} />

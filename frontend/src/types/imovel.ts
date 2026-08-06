@@ -77,6 +77,21 @@ export type ImovelGeometria = ImovelRegistro & {
   geom_bld: PolygonGeoJSON | null
 }
 
+// Retornado pelo backend (409) quando a geometria enviada em PUT /:id/geometria sobrepõe a
+// de outro terreno já cadastrado — ver `detalhes` na resposta de erro (geoService.ts).
+export type ConflitoGeometria = { id: number; insc: string; prop: string }
+
+// Retornado por GET /api/imoveis/verificar-duplicidade — candidatos a cadastro duplicado
+// por mesmo endereço e/ou proximidade geográfica (ver imovelService.ts).
+export type DuplicataCandidata = {
+  id: number
+  insc: string
+  prop: string
+  log: string | null
+  nr: string | null
+  motivos: ('endereco' | 'proximidade')[]
+}
+
 // Imóvel selecionado no mapa (clique no polígono ou na árvore/busca) — sempre com o
 // registro completo, ao contrário de ImovelFeature (campos reduzidos vindos do bbox do
 // mapa, usados só para estilizar/clicar os polígonos da camada de Imóveis).

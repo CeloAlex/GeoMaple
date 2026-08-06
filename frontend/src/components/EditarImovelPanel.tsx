@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import type { ImovelGeometria, ImovelRegistro } from '../types/imovel'
+import type { ConflitoGeometria, ImovelGeometria, ImovelRegistro } from '../types/imovel'
 import { FORM_INICIAL, type WizardFormData } from './Wizard/types'
 import { Step2Localizacao } from './Wizard/Step2Localizacao'
 import { Step3Geo } from './Wizard/Step3Geo'
@@ -10,6 +10,9 @@ type Props = {
   imovelId: number
   onClose: () => void
   onSalvo: () => void
+  // Destaca no mapa principal os imóveis apontados pelo backend como sobrepostos (409 em
+  // PUT .../geometria) — ver MainLayout.tsx `conflitosGeometriaIds`.
+  onConflitoGeometria?: (conflitos: ConflitoGeometria[]) => void
 }
 
 function registroParaForm(r: ImovelRegistro, geometria: ImovelGeometria): WizardFormData {
@@ -75,7 +78,13 @@ function extrairErro(err: unknown, fallback: string) {
   return (err as { response?: { data?: { erro?: string } } })?.response?.data?.erro ?? fallback
 }
 
-export function EditarImovelPanel({ imovelId, onClose, onSalvo }: Props) {
+function extrairConflitos(err: unknown): ConflitoGeometria[] | null {
+  const resposta = (err as { response?: { status?: number; data?: { detalhes?: unknown } } })?.response
+  if (resposta?.status !== 409 || !Array.isArray(resposta.data?.detalhes)) return null
+  return resposta.data.detalhes as ConflitoGeometria[]
+}
+
+export function EditarImovelPanel({ imovelId, onClose, onSalvo, onConflitoGeometria }: Props) {
   const [insc, setInsc] = useState('')
   const [form, setForm] = useState<WizardFormData | null>(null)
   const [geomOriginal, setGeomOriginal] = useState<ImovelGeometria | null>(null)
@@ -136,6 +145,8 @@ export function EditarImovelPanel({ imovelId, onClose, onSalvo }: Props) {
       onSalvo()
       onClose()
     } catch (err) {
+      const conflitos = extrairConflitos(err)
+      if (conflitos) onConflitoGeometria?.(conflitos)
       setErro(extrairErro(err, 'Não foi possível salvar as alterações'))
     } finally {
       setSalvando(false)

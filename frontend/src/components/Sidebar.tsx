@@ -4,9 +4,11 @@ import { useMunicipioStore } from '../store/municipioStore'
 import { Busca } from './Sidebar/Busca'
 import { ArvoreCadastros } from './Sidebar/ArvoreCadastros'
 import { ArvoreQuadras } from './Sidebar/ArvoreQuadras'
+import { ArvoreLogradouros } from './Sidebar/ArvoreLogradouros'
 import { Ferramentas, type DestinoImportacao } from './Sidebar/Ferramentas'
 import type { ImovelFeatureCollection, ImovelRegistro } from '../types/imovel'
 import type { Quadra } from '../types/quadra'
+import type { Logradouro } from '../types/logradouro'
 import type { CamadaImportada } from '../utils/importarGeo'
 import type { CamadaWms, Destino } from './Map/MapView'
 
@@ -20,11 +22,13 @@ type Props = {
   onNovoCadastro: () => void
   onQuadras: () => void
   onProvisorios: () => void
+  onLogradouros: () => void
   onOperadores: () => void
   onAuditoria: () => void
   onMinhaAtividade: () => void
   onSelecionarImovel: (imovel: ImovelRegistro) => void
   onSelecionarQuadra: (quadra: Quadra) => void
+  onSelecionarLogradouro: (logradouro: Logradouro) => void
   onBuscarEndereco: (destino: Destino, rotulo: string) => void
   recarregarArvoreEm?: number
   imoveisVisiveis: ImovelFeatureCollection
@@ -32,14 +36,16 @@ type Props = {
   onImportar: (camada: CamadaImportada) => void
   onLimparImportadas: () => void
   camadasWms: CamadaWms[]
-  onAdicionarWms: (camada: CamadaWms) => void
   onRemoverWms: (id: string) => void
-  abrirFormularioWmsEm?: number
+  onAtualizarWms: (id: string, patch: Partial<Pick<CamadaWms, 'ativa' | 'opacidade'>>) => void
+  onAbrirCatalogoWms: () => void
   onErro?: (msg: string) => void
   ramosOcultosCadastros: Set<string>
   onAlternarRamoCadastros: (chave: string) => void
   ramosOcultosQuadras: Set<string>
   onAlternarRamoQuadras: (chave: string) => void
+  ramosOcultosLogradouros: Set<string>
+  onAlternarRamoLogradouros: (chave: string) => void
   onEscolherDestinoImportacao?: (camada: CamadaImportada, destino: DestinoImportacao) => void
 }
 
@@ -47,11 +53,13 @@ export function Sidebar({
   onNovoCadastro,
   onQuadras,
   onProvisorios,
+  onLogradouros,
   onOperadores,
   onAuditoria,
   onMinhaAtividade,
   onSelecionarImovel,
   onSelecionarQuadra,
+  onSelecionarLogradouro,
   onBuscarEndereco,
   recarregarArvoreEm,
   imoveisVisiveis,
@@ -59,14 +67,16 @@ export function Sidebar({
   onImportar,
   onLimparImportadas,
   camadasWms,
-  onAdicionarWms,
   onRemoverWms,
-  abrirFormularioWmsEm,
+  onAtualizarWms,
+  onAbrirCatalogoWms,
   onErro,
   ramosOcultosCadastros,
   onAlternarRamoCadastros,
   ramosOcultosQuadras,
   onAlternarRamoQuadras,
+  ramosOcultosLogradouros,
+  onAlternarRamoLogradouros,
   onEscolherDestinoImportacao,
 }: Props) {
   const usuario = useAuthStore((s) => s.usuario)
@@ -112,6 +122,15 @@ export function Sidebar({
             onAlternarRamo={onAlternarRamoQuadras}
           />
         </div>
+        <div className="flex flex-1 flex-col overflow-y-auto border-t border-white/10 px-4 pt-3 pb-2 text-sm text-white/70">
+          <p className="mb-2 text-xs font-semibold tracking-wide text-white/50 uppercase">Logradouros</p>
+          <ArvoreLogradouros
+            onSelecionarLogradouro={onSelecionarLogradouro}
+            recarregarEm={recarregarArvoreEm}
+            ramosOcultos={ramosOcultosLogradouros}
+            onAlternarRamo={onAlternarRamoLogradouros}
+          />
+        </div>
       </div>
 
       <div className="shrink-0 border-t border-white/10">
@@ -146,6 +165,12 @@ export function Sidebar({
               >
                 🚧 Provisórios
               </button>
+              <button
+                onClick={onLogradouros}
+                className="w-full rounded border border-ua/60 py-2 text-sm font-medium text-ua transition hover:bg-ua/10"
+              >
+                🛣️ Logradouros
+              </button>
             </div>
 
             <Ferramentas
@@ -154,9 +179,9 @@ export function Sidebar({
               onImportar={onImportar}
               onLimparImportadas={onLimparImportadas}
               camadasWms={camadasWms}
-              onAdicionarWms={onAdicionarWms}
               onRemoverWms={onRemoverWms}
-              abrirFormularioEm={abrirFormularioWmsEm}
+              onAtualizarWms={onAtualizarWms}
+              onAbrirCatalogoWms={onAbrirCatalogoWms}
               onErro={onErro}
               onEscolherDestinoImportacao={onEscolherDestinoImportacao}
             />

@@ -10,7 +10,7 @@ function fmtDist(m: number) {
 type Props = {
   // Contador incrementado externamente (Toolbar/MenuBar "Régua: distância") para iniciar
   // a medição sem exigir que o usuário clique no botão do mapa — mesmo padrão de ponte já
-  // usado para abrir o formulário de WMS (MainLayout `wmsFormEm`/Ferramentas.tsx).
+  // usado por outros contadores de comando (MainLayout `medirAreaEm`/`fitTodosEm`).
   iniciarEm?: number
 }
 

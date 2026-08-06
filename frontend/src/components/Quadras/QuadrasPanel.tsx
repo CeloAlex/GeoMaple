@@ -121,6 +121,15 @@ export function QuadrasPanel({ onClose, onAlterado, onSelecionar, geomInicial }:
 
           {!carregando && modo === 'lista' && (
             <>
+              {podeEditar && (
+                <button
+                  onClick={() => setModo('nova')}
+                  className="mb-4 w-full rounded border border-dashed border-navy py-2 text-sm text-navy hover:bg-navy/5"
+                >
+                  + Nova Quadra
+                </button>
+              )}
+
               {quadras.length === 0 ? (
                 <p className="rounded bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
                   Nenhuma quadra georreferenciada cadastrada.
@@ -156,15 +165,6 @@ export function QuadrasPanel({ onClose, onAlterado, onSelecionar, geomInicial }:
                     </li>
                   ))}
                 </ul>
-              )}
-
-              {podeEditar && (
-                <button
-                  onClick={() => setModo('nova')}
-                  className="mt-4 w-full rounded border border-dashed border-navy py-2 text-sm text-navy hover:bg-navy/5"
-                >
-                  + Nova Quadra
-                </button>
               )}
             </>
           )}

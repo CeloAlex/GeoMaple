@@ -124,11 +124,25 @@ export async function criarImovel(dados: Record<string, unknown>, criadoPorId: n
 
   const imovel = await prisma.imovel.create({ data: data as never })
 
+  // Justificativa opcional do operador ao confirmar "Revisado — não é duplicata" na tela
+  // de duplicidade de cadastro (Wizard/CadastroWizard.tsx) — não é uma coluna do Imóvel,
+  // só fica registrada no log de auditoria (reaproveita o campo `detalhe` já existente).
+  const justificativaDuplicidade =
+    typeof dados.duplicidadeJustificativa === 'string' && dados.duplicidadeJustificativa.trim()
+      ? dados.duplicidadeJustificativa.trim()
+      : undefined
+
   await registrarAuditoria({
     userId: criadoPorId,
     acao: 'IMOVEL_CRIADO',
     entidade: `Imovel:${imovel.id}`,
-    detalhe: { insc: imovel.insc, prop: imovel.prop, uso: imovel.uso, st: imovel.st },
+    detalhe: {
+      insc: imovel.insc,
+      prop: imovel.prop,
+      uso: imovel.uso,
+      st: imovel.st,
+      ...(justificativaDuplicidade ? { duplicidadeRevisada: justificativaDuplicidade } : {}),
+    },
   })
 
   return imovel
@@ -168,6 +182,62 @@ export async function editarImovel(
   })
 
   return atualizado
+}
+
+type DuplicataRow = { id: number; insc: string; prop: string; log: string | null; nr: string | null }
+export type DuplicataCandidata = DuplicataRow & { motivos: ('endereco' | 'proximidade')[] }
+
+// Verificação de "Duplicidade de Cadastro": compara endereço (log+nr, case-insensitive) e
+// proximidade geográfica (centróide do terreno a menos de 10m de outro já cadastrado) —
+// só entre terrenos (parentId null), já que UAs nunca têm geometria própria e comparti­lham
+// o mesmo endereço do terreno pai por design (não é duplicidade). `excluirId` evita que o
+// próprio imóvel em edição apareça como duplicata de si mesmo.
+export async function verificarDuplicidade(params: {
+  log?: string
+  nr?: string
+  lat?: number
+  lng?: number
+  excluirId?: number
+}): Promise<DuplicataCandidata[]> {
+  const excluirId = params.excluirId ?? -1
+  const encontrados = new Map<number, DuplicataCandidata>()
+
+  function adicionar(rows: DuplicataRow[], motivo: 'endereco' | 'proximidade') {
+    for (const row of rows) {
+      const atual = encontrados.get(row.id)
+      if (atual) atual.motivos.push(motivo)
+      else encontrados.set(row.id, { ...row, motivos: [motivo] })
+    }
+  }
+
+  if (params.log?.trim() && params.nr?.trim()) {
+    const porEndereco = await prisma.imovel.findMany({
+      where: {
+        ativo: true,
+        parentId: null,
+        id: { not: excluirId },
+        log: { equals: params.log.trim(), mode: 'insensitive' },
+        nr: { equals: params.nr.trim(), mode: 'insensitive' },
+      },
+      select: { id: true, insc: true, prop: true, log: true, nr: true },
+    })
+    adicionar(porEndereco, 'endereco')
+  }
+
+  if (params.lat != null && params.lng != null) {
+    const porProximidade = await prisma.$queryRaw<DuplicataRow[]>`
+      SELECT id, insc, prop, log, nr FROM "Imovel"
+      WHERE ativo = true AND "parentId" IS NULL AND geom IS NOT NULL AND id != ${excluirId}
+        AND ST_DWithin(
+          ST_Centroid(geom)::geography,
+          ST_SetSRID(ST_MakePoint(${params.lng}, ${params.lat}), 4326)::geography,
+          10
+        )
+    `
+    adicionar(porProximidade, 'proximidade')
+  }
+
+  return [...encontrados.values()]
 }
 
 export async function excluirImovel(id: number, solicitante: { id: number }) {

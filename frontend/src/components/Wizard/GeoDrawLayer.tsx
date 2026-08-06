@@ -5,12 +5,6 @@ import 'leaflet-draw'
 import type { PolygonGeoJSON } from '../../types/imovel'
 import { poligonoParaLatLngs, layerParaPoligono, calcularArea } from '../Map/geoDrawUtils'
 import { instrumentarDesenhoDebug } from '../Map/debugDesenho'
-import {
-  buscarPontosVizinhos,
-  instrumentarSnapNoDesenho,
-  instrumentarSnapNaEdicao,
-  type PontosVizinhos,
-} from '../Map/snapTopologico'
 
 export type TipoDesenho = 'terreno' | 'edificacao'
 
@@ -32,14 +26,13 @@ type Props = {
   edificacaoGeom: PolygonGeoJSON | null
   onTerrenoChange: (geom: PolygonGeoJSON | null, areaM2: number | null) => void
   onEdificacaoChange: (geom: PolygonGeoJSON | null, areaM2: number | null) => void
-  snapAtivo: boolean
 }
 
 // Integra leaflet-draw (biblioteca imperativa) ao mapa do react-leaflet.
 // Um único FeatureGroup guarda no máximo 1 polígono de terreno + 1 de edificação,
 // distinguidos pela propriedade sgcimTipo em cada layer.
 export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLayer(
-  { terrenoGeom, edificacaoGeom, onTerrenoChange, onEdificacaoChange, snapAtivo },
+  { terrenoGeom, edificacaoGeom, onTerrenoChange, onEdificacaoChange },
   ref,
 ) {
   const map = useMap()
@@ -52,9 +45,6 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
   const desenhoAtivoRef = useRef<L.Draw.Polygon | null>(null)
   const callbacksRef = useRef({ onTerrenoChange, onEdificacaoChange })
   callbacksRef.current = { onTerrenoChange, onEdificacaoChange }
-  const snapAtivoRef = useRef(snapAtivo)
-  snapAtivoRef.current = snapAtivo
-  const vizinhosRef = useRef<PontosVizinhos>({ pontos: [], segmentos: [] })
 
   useImperativeHandle(ref, () => ({
     iniciarDesenho(tipo) {
@@ -68,10 +58,6 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
       desenhoAtivoRef.current = desenho
       desenho.enable()
       instrumentarDesenhoDebug(desenho, map, `terreno-${tipo}`)
-      instrumentarSnapNoDesenho(desenho, map, snapAtivoRef, vizinhosRef)
-      buscarPontosVizinhos(map).then((v) => {
-        vizinhosRef.current = v
-      })
     },
     finalizarDesenho() {
       // Fecha o polígono em desenho explicitamente (>= 3 vértices) — complementa o
@@ -152,13 +138,11 @@ export const GeoDrawLayer = forwardRef<GeoDrawHandle, Props>(function GeoDrawLay
     map.on(L.Draw.Event.CREATED, aoCriar)
     map.on(L.Draw.Event.EDITED, aoEditar)
     map.on(L.Draw.Event.DELETED, aoExcluir)
-    const removerSnapEdicao = instrumentarSnapNaEdicao(map, snapAtivoRef, vizinhosRef)
 
     return () => {
       map.off(L.Draw.Event.CREATED, aoCriar)
       map.off(L.Draw.Event.EDITED, aoEditar)
       map.off(L.Draw.Event.DELETED, aoExcluir)
-      removerSnapEdicao()
       map.removeControl(controle)
       map.removeLayer(grupo)
     }

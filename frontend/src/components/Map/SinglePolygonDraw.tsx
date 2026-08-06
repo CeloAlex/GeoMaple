@@ -5,7 +5,6 @@ import 'leaflet-draw'
 import type { PolygonGeoJSON } from '../../types/imovel'
 import { poligonoParaLatLngs, layerParaPoligono, calcularArea } from './geoDrawUtils'
 import { instrumentarDesenhoDebug } from './debugDesenho'
-import { buscarPontosVizinhos, instrumentarSnapNoDesenho, instrumentarSnapNaEdicao, type PontosVizinhos } from './snapTopologico'
 
 export type SinglePolygonHandle = {
   iniciarDesenho: () => void
@@ -17,14 +16,13 @@ type Props = {
   geom: PolygonGeoJSON | null
   cor: string
   onChange: (geom: PolygonGeoJSON | null, areaM2: number | null) => void
-  snapAtivo: boolean
 }
 
 // Versão simplificada do GeoDrawLayer do wizard de cadastro (Wizard/GeoDrawLayer.tsx) para
 // telas que só precisam de UM polígono por vez — Quadras georreferenciadas e Delimitações
 // Provisórias. Mesma integração com leaflet-draw, sem a distinção terreno/edificação.
 export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function SinglePolygonDraw(
-  { geom, cor, onChange, snapAtivo },
+  { geom, cor, onChange },
   ref,
 ) {
   const map = useMap()
@@ -35,9 +33,6 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
   onChangeRef.current = onChange
   const estiloRef = useRef<L.PathOptions>({ color: cor, weight: 2, fillColor: cor, fillOpacity: 0.15, dashArray: '6,4' })
   estiloRef.current = { color: cor, weight: 2, fillColor: cor, fillOpacity: 0.15, dashArray: '6,4' }
-  const snapAtivoRef = useRef(snapAtivo)
-  snapAtivoRef.current = snapAtivo
-  const vizinhosRef = useRef<PontosVizinhos>({ pontos: [], segmentos: [] })
 
   useImperativeHandle(ref, () => ({
     iniciarDesenho() {
@@ -50,10 +45,6 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
       desenhoAtivoRef.current = desenho
       desenho.enable()
       instrumentarDesenhoDebug(desenho, map, 'single')
-      instrumentarSnapNoDesenho(desenho, map, snapAtivoRef, vizinhosRef)
-      buscarPontosVizinhos(map).then((v) => {
-        vizinhosRef.current = v
-      })
     },
     finalizarDesenho() {
       // Fecha o polígono em desenho explicitamente (>= 3 vértices) — complementa o
@@ -111,13 +102,11 @@ export const SinglePolygonDraw = forwardRef<SinglePolygonHandle, Props>(function
     map.on(L.Draw.Event.CREATED, aoCriar)
     map.on(L.Draw.Event.EDITED, aoEditar)
     map.on(L.Draw.Event.DELETED, aoExcluir)
-    const removerSnapEdicao = instrumentarSnapNaEdicao(map, snapAtivoRef, vizinhosRef)
 
     return () => {
       map.off(L.Draw.Event.CREATED, aoCriar)
       map.off(L.Draw.Event.EDITED, aoEditar)
       map.off(L.Draw.Event.DELETED, aoExcluir)
-      removerSnapEdicao()
       map.removeControl(controle)
       map.removeLayer(grupo)
     }

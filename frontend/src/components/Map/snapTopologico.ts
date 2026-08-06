@@ -11,8 +11,9 @@ const SEM_VIZINHOS: PontosVizinhos = { pontos: [], segmentos: [] }
 
 // Busca os lotes visíveis nos bounds atuais do mapa (mesmo endpoint que já popula a camada
 // de Imóveis) e devolve seus vértices e arestas, para servir de candidatos de "ajuste
-// topológico" (encaixar o polígono em desenho/edição nos confrontantes). `idExcluir` evita
-// que o próprio lote em edição vire candidato de si mesmo.
+// topológico" (encaixar o polígono em edição nos confrontantes) — ver
+// Map/AjusteTopologicoTool.tsx. `idExcluir` evita que o próprio lote em edição vire
+// candidato de si mesmo.
 export async function buscarPontosVizinhos(map: L.Map, idExcluir?: number): Promise<PontosVizinhos> {
   const b = map.getBounds()
   const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`
@@ -70,27 +71,6 @@ export function encontrarSnap(map: L.Map, latlng: L.LatLng, vizinhos: PontosVizi
   }
 
   return melhorPonto ?? latlng
-}
-
-type DesenhoInstrumentavel = L.Draw.Polygon & { __snapInstrumentado?: boolean }
-
-// Envolve addVertex do handler de desenho ATIVO para aplicar o snap na LatLng recebida antes
-// de delegar ao método original — assim o marcador e o `_poly` interno do leaflet-draw ficam
-// sempre consistentes entre si (é o próprio addVertex que atualiza os dois). Chamar de novo
-// para o mesmo handler não tem efeito (idempotente).
-export function instrumentarSnapNoDesenho(
-  desenho: L.Draw.Polygon,
-  map: L.Map,
-  ativoRef: { current: boolean },
-  vizinhosRef: { current: PontosVizinhos },
-) {
-  const d = desenho as DesenhoInstrumentavel
-  if (d.__snapInstrumentado) return
-  const original = d.addVertex.bind(d)
-  d.addVertex = (latlng: L.LatLng) => {
-    original(ativoRef.current ? encontrarSnap(map, latlng, vizinhosRef.current) : latlng)
-  }
-  d.__snapInstrumentado = true
 }
 
 type PolyComEditing = L.Polygon & { editing?: { updateMarkers: () => void } }

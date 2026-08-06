@@ -8,6 +8,7 @@ import {
   criarImovel,
   editarImovel,
   excluirImovel,
+  verificarDuplicidade,
 } from '../services/imovelService'
 import { atualizarGeometria, obterGeometria } from '../services/geoService'
 import { listarUnidades, criarUnidade, editarUnidade, excluirUnidade } from '../services/uaService'
@@ -15,7 +16,9 @@ import { listarUnidades, criarUnidade, editarUnidade, excluirUnidade } from '../
 const router = Router()
 
 function tratarErro(e: unknown, res: import('express').Response) {
-  if (e instanceof AppError) return res.status(e.status).json({ erro: e.message })
+  if (e instanceof AppError) {
+    return res.status(e.status).json(e.details !== undefined ? { erro: e.message, detalhes: e.details } : { erro: e.message })
+  }
   console.error(e)
   return res.status(500).json({ erro: 'Erro interno' })
 }
@@ -43,6 +46,23 @@ router.post('/', auth, permitir('admin', 'editor'), async (req, res) => {
   try {
     const imovel = await criarImovel(req.body, req.user!.id)
     res.status(201).json(imovel)
+  } catch (e) {
+    tratarErro(e, res)
+  }
+})
+
+// Precisa vir antes de GET /:id — senão "verificar-duplicidade" seria interpretado como id.
+router.get('/verificar-duplicidade', auth, async (req, res) => {
+  const { log, nr, lat, lng, excluirId } = req.query
+  try {
+    const candidatos = await verificarDuplicidade({
+      log: log ? String(log) : undefined,
+      nr: nr ? String(nr) : undefined,
+      lat: lat !== undefined ? Number(lat) : undefined,
+      lng: lng !== undefined ? Number(lng) : undefined,
+      excluirId: excluirId !== undefined ? Number(excluirId) : undefined,
+    })
+    res.json(candidatos)
   } catch (e) {
     tratarErro(e, res)
   }

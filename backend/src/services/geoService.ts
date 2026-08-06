@@ -5,6 +5,8 @@ import { registrarAuditoria } from './auditService'
 
 type GeomRow = { at_geo: number | null; ac_geo: number | null; geom: string | null; geom_bld: string | null }
 
+type ConflitoSobreposicao = { id: number; insc: string; prop: string }
+
 export async function lerGeometria(id: number) {
   const rows = await prisma.$queryRaw<GeomRow[]>`
     SELECT at_geo, ac_geo, ST_AsGeoJSON(geom) AS geom, ST_AsGeoJSON(geom_bld) AS geom_bld
@@ -60,6 +62,27 @@ export async function atualizarGeometria(
   await prisma.$transaction(async (tx) => {
     if (dados.geom !== undefined) {
       const geojson = JSON.stringify(dados.geom as PolygonGeoJSON)
+
+      // Bloqueia sobreposição com outro terreno já cadastrado — mas não com quem só
+      // encosta na borda (ST_Touches), já que compartilhar uma aresta entre confrontantes
+      // é justamente o resultado desejado do Ajuste Topológico. `geom IS NOT NULL` já
+      // exclui toda Unidade Autônoma (nunca tem geometria própria — sempre NULL), então
+      // nenhuma UA nunca aparece aqui nem como candidata a conflito nem como alvo da
+      // checagem (id sempre resolvido para o terreno via resolverIdTerreno acima).
+      const conflitos = await tx.$queryRaw<ConflitoSobreposicao[]>`
+        SELECT id, insc, prop FROM "Imovel"
+        WHERE ativo = true AND geom IS NOT NULL AND id != ${idTerreno}
+          AND ST_Intersects(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))
+          AND NOT ST_Touches(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))
+      `
+      if (conflitos.length > 0) {
+        throw new AppError(
+          409,
+          `Geometria sobreposta à de ${conflitos.length > 1 ? `${conflitos.length} imóveis já cadastrados` : `"${conflitos[0].insc}" (já cadastrado)`}`,
+          conflitos,
+        )
+      }
+
       await tx.$executeRaw`
         UPDATE "Imovel"
         SET geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326),

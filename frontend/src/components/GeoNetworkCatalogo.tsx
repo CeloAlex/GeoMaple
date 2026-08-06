@@ -19,8 +19,8 @@ function extrairErro(err: unknown, fallback: string) {
 // Catálogo GeoNetwork/WMS: consulta o GetCapabilities de um servidor informado pelo
 // operador (via proxy no backend, para evitar bloqueio de CORS) e lista as camadas
 // disponíveis para adicionar ao mapa com um clique — em vez de precisar saber de antemão
-// a URL exata e o nome técnico da layer (que continua disponível como "Adicionar WMS
-// manualmente", útil quando o servidor não responde a GetCapabilities).
+// a URL exata e o nome técnico da layer. Único caminho de adição de WMS no sistema
+// (barra superior e barra lateral abrem este mesmo modal).
 export function GeoNetworkCatalogo({ onClose, camadasWms, onAdicionarWms, onRemoverWms }: Props) {
   const [url, setUrl] = useState('')
   const [consultando, setConsultando] = useState(false)
@@ -55,7 +55,14 @@ export function GeoNetworkCatalogo({ onClose, camadasWms, onAdicionarWms, onRemo
     if (existente) {
       onRemoverWms(existente.id)
     } else {
-      onAdicionarWms({ id: crypto.randomUUID(), nome: camada.title, url: baseUrlWms(url.trim()), layers: camada.name })
+      onAdicionarWms({
+        id: crypto.randomUUID(),
+        nome: camada.title,
+        url: baseUrlWms(url.trim()),
+        layers: camada.name,
+        ativa: true,
+        opacidade: 100,
+      })
     }
   }
 

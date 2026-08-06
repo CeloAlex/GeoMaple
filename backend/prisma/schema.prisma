@@ -88,8 +88,9 @@ model User {
   criadoPor         User?  @relation("UserCriadoPor", fields: [createdBy], references: [id])
   operadoresCriados User[] @relation("UserCriadoPor")
 
-  imoveis   Imovel[]
-  auditoria Auditoria[]
+  imoveis           Imovel[]
+  auditoria         Auditoria[]
+  certidoesEmitidas Certidao[]
 }
 
 model Auditoria {
@@ -125,4 +126,44 @@ model Provisorio {
   status String
   obs    String?
   geom   Unsupported("geometry(Polygon, 4326)")?
+}
+
+model Logradouro {
+  id        Int       @id @default(autoincrement())
+  nome      String
+  tipo      String // rua | avenida | travessa | praca | ...
+  bairros   String[]  @default([])
+  cep       String?
+  distrito  String?
+  leiNumero String?
+  leiData   DateTime?
+  leiLink   String?
+  situacao  String    @default("sem_denominacao") // oficial | provisorio | sem_denominacao
+  obs       String?
+  geom      Unsupported("geometry(LineString, 4326)")?
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  certidoes Certidao[]
+
+  @@index([ativo])
+  @@index([geom], type: Gist)
+}
+
+model Certidao {
+  id                Int         @id @default(autoincrement())
+  tipo              String // existencia_denominacao | identificacao_logradouro
+  ano               Int
+  seq               Int
+  numero            String // "001/2026" (ano+seq formatados)
+  codigoVerificacao String      @unique
+  logradouroId      Int?
+  logradouro        Logradouro? @relation(fields: [logradouroId], references: [id])
+  nomeConsultado    String? // nome informado na Certidão de Existência de Denominação (sem logradouro vinculado)
+  emitidoPorId      Int
+  emitidoPor        User        @relation(fields: [emitidoPorId], references: [id])
+  emitidoEm         DateTime    @default(now())
+
+  @@unique([tipo, ano, seq])
 }

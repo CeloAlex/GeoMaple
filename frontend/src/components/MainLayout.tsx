@@ -5,6 +5,7 @@ import { DetailPanel } from './DetailPanel'
 import { CadastroWizard } from './Wizard/CadastroWizard'
 import { QuadrasPanel } from './Quadras/QuadrasPanel'
 import { ProvisoriosPanel } from './Provisorios/ProvisoriosPanel'
+import { LogradourosPanel } from './Logradouros/LogradourosPanel'
 import { OperadoresPanel } from './Operadores/OperadoresPanel'
 import { AuditoriaPanel } from './Auditoria/AuditoriaPanel'
 import { MinhaAtividade } from './Auditoria/MinhaAtividade'
@@ -18,6 +19,7 @@ import { centroidePoligono } from '../utils/geo'
 import { exportarImovelGeoJSON, exportarImovelKML } from '../utils/exportarImovel'
 import { useMunicipioStore } from '../store/municipioStore'
 import type {
+  ConflitoGeometria,
   ImovelFeature,
   ImovelFeatureCollection,
   ImovelGeometria,
@@ -28,6 +30,7 @@ import type {
 import type { CamadaImportada } from '../utils/importarGeo'
 import type { Quadra } from '../types/quadra'
 import type { Provisorio } from '../types/provisorio'
+import type { Logradouro } from '../types/logradouro'
 
 const SEM_IMOVEIS: ImovelFeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -37,6 +40,7 @@ export function MainLayout() {
   const [wizardAberto, setWizardAberto] = useState(false)
   const [quadrasAberto, setQuadrasAberto] = useState(false)
   const [provisoriosAberto, setProvisoriosAberto] = useState(false)
+  const [logradourosAberto, setLogradourosAberto] = useState(false)
   const [operadoresAberto, setOperadoresAberto] = useState(false)
   const [auditoriaAberto, setAuditoriaAberto] = useState(false)
   const [minhaAtividadeAberto, setMinhaAtividadeAberto] = useState(false)
@@ -45,7 +49,6 @@ export function MainLayout() {
   const [recarregarEm, setRecarregarEm] = useState(0)
   const [voarPara, setVoarPara] = useState<Destino | null>(null)
   const [fitTodosEm, setFitTodosEm] = useState(0)
-  const [wmsFormEm, setWmsFormEm] = useState(0)
   const [catalogoAberto, setCatalogoAberto] = useState(false)
   const [conversaoAberta, setConversaoAberta] = useState(false)
   const [geomParaConversao, setGeomParaConversao] = useState<PolygonGeoJSON | null>(null)
@@ -55,17 +58,24 @@ export function MainLayout() {
   const [camadasWms, setCamadasWms] = useState<CamadaWms[]>([])
   const [quadraSelecionadaId, setQuadraSelecionadaId] = useState<number | null>(null)
   const [provisorioSelecionadoId, setProvisorioSelecionadoId] = useState<number | null>(null)
+  const [logradouroSelecionadoId, setLogradouroSelecionadoId] = useState<number | null>(null)
   const [medirDistanciaEm, setMedirDistanciaEm] = useState(0)
   const [medirAreaEm, setMedirAreaEm] = useState(0)
+  const [ajusteTopologicoEm, setAjusteTopologicoEm] = useState(0)
   // Árvores independentes (Cadastros e Quadras) — cada uma controla sua própria camada no
   // mapa, sem afetar a outra.
   const [ramosOcultosCadastros, setRamosOcultosCadastros] = useState<Set<string>>(new Set())
   const [ramosOcultosQuadras, setRamosOcultosQuadras] = useState<Set<string>>(new Set())
+  const [ramosOcultosLogradouros, setRamosOcultosLogradouros] = useState<Set<string>>(new Set())
   const [geomInicialQuadra, setGeomInicialQuadra] = useState<PolygonGeoJSON | null>(null)
   const [geomInicialProvisorio, setGeomInicialProvisorio] = useState<PolygonGeoJSON | null>(null)
   // Provisório sendo convertido em Cadastro Definitivo — só é excluído quando o wizard
   // salva com sucesso (ver onSalvo do CadastroWizard); cancelar o wizard não deve excluí-lo.
   const [provisorioEmConversaoId, setProvisorioEmConversaoId] = useState<number | null>(null)
+  // Imóveis apontados pelo backend como sobrepostos à geometria em edição (409 em
+  // PUT .../geometria) — destacados em vermelho no mapa até o wizard/edição fechar ou
+  // salvar com sucesso (ver CadastroWizard/EditarImovelPanel `onConflitoGeometria`).
+  const [conflitosGeometria, setConflitosGeometria] = useState<ConflitoGeometria[]>([])
 
   function alternarRamo(setRamos: (atualizar: (atual: Set<string>) => Set<string>) => void, chave: string) {
     setRamos((atual) => {
@@ -108,6 +118,13 @@ export function MainLayout() {
     selecionarImovelPorId(imovel.id)
   }
 
+  function aoConflitoGeometria(conflitos: ConflitoGeometria[]) {
+    setConflitosGeometria(conflitos)
+    if (conflitos.length > 0) {
+      mostrarAviso(`⚠️ Sobreposição de geometria — destacado(s) no mapa: ${conflitos.map((c) => c.insc).join(', ')}`)
+    }
+  }
+
   function selecionarQuadra(quadra: Quadra) {
     if (!quadra.geom) return
     setQuadraSelecionadaId(quadra.id)
@@ -120,6 +137,14 @@ export function MainLayout() {
     setProvisorioSelecionadoId(provisorio.id)
     setVoarPara(centroidePoligono(provisorio.geom))
     setProvisoriosAberto(false)
+  }
+
+  function selecionarLogradouro(logradouro: Logradouro) {
+    if (!logradouro.geom) return
+    setLogradouroSelecionadoId(logradouro.id)
+    const [lng, lat] = logradouro.geom.coordinates[Math.floor(logradouro.geom.coordinates.length / 2)]
+    setVoarPara({ lat, lng })
+    setLogradourosAberto(false)
   }
 
   function exportarKmlSelecionado() {
@@ -214,21 +239,22 @@ export function MainLayout() {
     onNovoCadastro: abrirWizardNovo,
     onNovaProvisoria: () => setProvisoriosAberto(true),
     onQuadras: () => setQuadrasAberto(true),
+    onLogradouros: () => setLogradourosAberto(true),
     onOperadores: () => setOperadoresAberto(true),
     onExportarKmlSelecionado: exportarKmlSelecionado,
     onExportarGeoJsonSelecionado: exportarGeoJsonSelecionado,
     onVerTodos: () => setFitTodosEm((n) => n + 1),
-    onAdicionarWms: () => {
+    onAbrirCatalogoGeoNetwork: () => {
       setSidebarColapsada(false)
-      setWmsFormEm((n) => n + 1)
+      setCatalogoAberto(true)
     },
-    onAbrirCatalogoGeoNetwork: () => setCatalogoAberto(true),
     onConverterImportados: () => setConversaoAberta(true),
     onImprimirMapa: () => window.print(),
     onSobre: () => setSobreAberto(true),
     onIndisponivel: mostrarAviso,
     onMedirDistancia: () => setMedirDistanciaEm((n) => n + 1),
     onMedirArea: () => setMedirAreaEm((n) => n + 1),
+    onAjusteTopologico: () => setAjusteTopologicoEm((n) => n + 1),
   }
 
   return (
@@ -241,11 +267,13 @@ export function MainLayout() {
             onNovoCadastro={() => setWizardAberto(true)}
             onQuadras={() => setQuadrasAberto(true)}
             onProvisorios={() => setProvisoriosAberto(true)}
+            onLogradouros={() => setLogradourosAberto(true)}
             onOperadores={() => setOperadoresAberto(true)}
             onAuditoria={() => setAuditoriaAberto(true)}
             onMinhaAtividade={() => setMinhaAtividadeAberto(true)}
             onSelecionarImovel={selecionarImovel}
             onSelecionarQuadra={selecionarQuadra}
+            onSelecionarLogradouro={selecionarLogradouro}
             onBuscarEndereco={buscarEndereco}
             recarregarArvoreEm={recarregarEm}
             imoveisVisiveis={imoveisVisiveis}
@@ -253,14 +281,16 @@ export function MainLayout() {
             onImportar={(camada) => setCamadasImportadas((cs) => [...cs, camada])}
             onLimparImportadas={() => setCamadasImportadas([])}
             camadasWms={camadasWms}
-            onAdicionarWms={(camada) => setCamadasWms((cs) => [...cs, camada])}
             onRemoverWms={(id) => setCamadasWms((cs) => cs.filter((c) => c.id !== id))}
-            abrirFormularioWmsEm={wmsFormEm}
+            onAtualizarWms={(id, patch) => setCamadasWms((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)))}
+            onAbrirCatalogoWms={() => setCatalogoAberto(true)}
             onErro={mostrarAviso}
             ramosOcultosCadastros={ramosOcultosCadastros}
             onAlternarRamoCadastros={(chave) => alternarRamo(setRamosOcultosCadastros, chave)}
             ramosOcultosQuadras={ramosOcultosQuadras}
             onAlternarRamoQuadras={(chave) => alternarRamo(setRamosOcultosQuadras, chave)}
+            ramosOcultosLogradouros={ramosOcultosLogradouros}
+            onAlternarRamoLogradouros={(chave) => alternarRamo(setRamosOcultosLogradouros, chave)}
             onEscolherDestinoImportacao={escolherDestinoImportacao}
           />
         )}
@@ -276,16 +306,23 @@ export function MainLayout() {
             fitTodosEm={fitTodosEm}
             quadraSelecionadaId={quadraSelecionadaId}
             provisorioSelecionadoId={provisorioSelecionadoId}
+            logradouroSelecionadoId={logradouroSelecionadoId}
             onWmsErro={(nome) => mostrarAviso(`⚠️ Camada WMS "${nome}" não retornou imagem — verifique nome técnico/URL/versão do serviço.`)}
             medirDistanciaEm={medirDistanciaEm}
             medirAreaEm={medirAreaEm}
+            ajusteTopologicoEm={ajusteTopologicoEm}
+            onAjusteTopologicoSalvo={() => setRecarregarEm((n) => n + 1)}
+            onAjusteTopologicoErro={mostrarAviso}
             ramosOcultosCadastros={ramosOcultosCadastros}
             ramosOcultosQuadras={ramosOcultosQuadras}
+            ramosOcultosLogradouros={ramosOcultosLogradouros}
+            idsConflitoGeometria={conflitosGeometria.map((c) => c.id)}
           />
           <DetailPanel
             feature={selecionado}
             onClose={() => setSelecionado(null)}
             onAlterado={() => setRecarregarEm((n) => n + 1)}
+            onConflitoGeometria={aoConflitoGeometria}
           />
           {aviso && (
             <div className="absolute top-4 left-1/2 z-1001 -translate-x-1/2 rounded bg-navy px-4 py-2 text-sm text-white shadow-lg print:hidden">
@@ -310,6 +347,7 @@ export function MainLayout() {
         }}
         onSalvo={aoSalvarWizard}
         geomInicial={geomParaConversao}
+        onConflitoGeometria={aoConflitoGeometria}
       />
       {quadrasAberto && (
         <QuadrasPanel
@@ -332,6 +370,13 @@ export function MainLayout() {
           onSelecionar={selecionarProvisorio}
           geomInicial={geomInicialProvisorio}
           onConverterParaDefinitivo={converterProvisorioParaDefinitivo}
+        />
+      )}
+      {logradourosAberto && (
+        <LogradourosPanel
+          onClose={() => setLogradourosAberto(false)}
+          onAlterado={() => setRecarregarEm((n) => n + 1)}
+          onSelecionar={selecionarLogradouro}
         />
       )}
       {operadoresAberto && <OperadoresPanel onClose={() => setOperadoresAberto(false)} />}
