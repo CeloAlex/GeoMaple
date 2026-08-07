@@ -115,8 +115,12 @@ export function AjusteTopologicoTool({ iniciarEm, imoveis, onSalvo, onErro }: Pr
 
     vizinhosRef.current = await buscarPontosVizinhos(map, id)
 
+    // 'bottomleft' (não 'topleft') — o canto superior esquerdo já tem a <div> fixa de
+    // Régua/BotoesGoogle/PontoGeorreferenciado em MapView.tsx (mesmo z-index do container
+    // de controles do Leaflet, renderizada depois dele no DOM), que cobria o ícone de
+    // edição (✏️) assim que a barra do leaflet-draw crescia até aquela faixa da tela.
     const controle = new L.Control.Draw({
-      position: 'topleft',
+      position: 'bottomleft',
       draw: { polyline: false, polygon: false, rectangle: false, circle: false, marker: false, circlemarker: false },
       edit: { featureGroup: grupoRef.current, remove: false },
     })
@@ -168,7 +172,7 @@ export function AjusteTopologicoTool({ iniciarEm, imoveis, onSalvo, onErro }: Pr
       {fase === 'editando' && (
         <>
           <span className="text-navy">
-            🧲 Editando <strong>{editandoInsc}</strong> — use o ✏️ no canto superior esquerdo do mapa para habilitar a
+            🧲 Editando <strong>{editandoInsc}</strong> — use o ✏️ no canto inferior esquerdo do mapa para habilitar a
             edição dos vértices
           </span>
           <button

@@ -196,7 +196,6 @@ export function LogradourosPanel({ onClose, onAlterado, onSelecionar }: Props) {
           {!carregando && editando && (
             <LogradouroForm
               titulo={`Editar ${editando.nome}`}
-              id={editando.id}
               inicial={logradouroParaForm(editando)}
               onSalvar={(dados) => editar(editando.id, dados)}
               onCancelar={() => setModo('lista')}

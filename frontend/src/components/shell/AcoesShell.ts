@@ -19,4 +19,9 @@ export type AcoesShell = {
   onMedirDistancia: () => void
   onMedirArea: () => void
   onAjusteTopologico: () => void
+  onCertidaoLogradouro: () => void
+  onRelatorioInconsistencias: () => void
+  onRelatorioProprietario: () => void
+  onManualSistema: () => void
+  onMaterialDivulgacao: () => void
 }

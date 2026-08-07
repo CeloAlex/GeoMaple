@@ -3,17 +3,24 @@ import { useAuthStore } from '../store/authStore'
 import type { AcoesShell } from './shell/AcoesShell'
 import { mensagemForaDoEscopo } from '../constants/mensagens'
 
-type Item = { label: string; atalho?: string; onClick: () => void }
+// `submenu` substitui `onClick` num item de 2º nível (ex.: Relatórios → Certidões → …) —
+// só 1 nível de aninhamento, aberto/fechado junto com o menu pai (fecha ao clicar fora,
+// trocar de menu de topo ou escolher qualquer item folha).
+type Item = { label: string; atalho?: string; onClick?: () => void; submenu?: Item[] }
 type Menu = { label: string; itens: Item[] }
 
 export function MenuBar(acoes: AcoesShell) {
   const logout = useAuthStore((s) => s.logout)
   const [aberto, setAberto] = useState<string | null>(null)
+  const [submenuAberto, setSubmenuAberto] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function aoClicarFora(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAberto(null)
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setAberto(null)
+        setSubmenuAberto(null)
+      }
     }
     document.addEventListener('mousedown', aoClicarFora)
     return () => document.removeEventListener('mousedown', aoClicarFora)
@@ -72,17 +79,43 @@ export function MenuBar(acoes: AcoesShell) {
       itens: [{ label: 'Adicionar camada WMS', onClick: acoes.onAbrirCatalogoGeoNetwork }],
     },
     {
+      label: 'Relatórios',
+      itens: [
+        {
+          label: 'Certidões',
+          submenu: [{ label: 'Certidão de Denominação de Logradouro', onClick: acoes.onCertidaoLogradouro }],
+        },
+        { label: 'Inconsistências de área', onClick: acoes.onRelatorioInconsistencias },
+        { label: 'Mapa por proprietário', onClick: acoes.onRelatorioProprietario },
+        { label: 'Manual do sistema', onClick: acoes.onManualSistema },
+        { label: 'Material de divulgação', onClick: acoes.onMaterialDivulgacao },
+      ],
+    },
+    {
       label: 'Ajuda',
       itens: [{ label: 'Sobre o SGCIM', onClick: acoes.onSobre }],
     },
   ]
+
+  function clicarItem(item: Item) {
+    if (item.submenu) {
+      setSubmenuAberto((s) => (s === item.label ? null : item.label))
+      return
+    }
+    item.onClick?.()
+    setAberto(null)
+    setSubmenuAberto(null)
+  }
 
   return (
     <div ref={ref} className="flex h-8 items-center gap-0.5 border-b border-white/10 bg-navy px-2 text-[13px] text-white/85 print:hidden">
       {menus.map((menu) => (
         <div key={menu.label} className="relative">
           <button
-            onClick={() => setAberto((a) => (a === menu.label ? null : menu.label))}
+            onClick={() => {
+              setAberto((a) => (a === menu.label ? null : menu.label))
+              setSubmenuAberto(null)
+            }}
             className={`rounded px-2.5 py-1 hover:bg-white/10 ${aberto === menu.label ? 'bg-white/10' : ''}`}
           >
             {menu.label}
@@ -90,17 +123,31 @@ export function MenuBar(acoes: AcoesShell) {
           {aberto === menu.label && (
             <div className="absolute top-full left-0 z-1002 min-w-[240px] rounded-b border border-gray-200 bg-white py-1 text-[13px] text-gray-800 shadow-xl">
               {menu.itens.map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => {
-                    item.onClick()
-                    setAberto(null)
-                  }}
-                  className="flex w-full items-center justify-between px-3 py-1.5 text-left hover:bg-gray-100"
-                >
-                  <span>{item.label}</span>
-                  {item.atalho && <span className="ml-4 text-[11px] text-gray-400">{item.atalho}</span>}
-                </button>
+                <div key={item.label} className="relative">
+                  <button
+                    onClick={() => clicarItem(item)}
+                    className="flex w-full items-center justify-between px-3 py-1.5 text-left hover:bg-gray-100"
+                  >
+                    <span>{item.label}</span>
+                    <span className="ml-4 flex items-center gap-1 text-[11px] text-gray-400">
+                      {item.atalho}
+                      {item.submenu && '▶'}
+                    </span>
+                  </button>
+                  {item.submenu && submenuAberto === item.label && (
+                    <div className="absolute top-0 left-full z-1003 min-w-[260px] rounded border border-gray-200 bg-white py-1 text-[13px] text-gray-800 shadow-xl">
+                      {item.submenu.map((sub) => (
+                        <button
+                          key={sub.label}
+                          onClick={() => clicarItem(sub)}
+                          className="flex w-full items-center justify-between px-3 py-1.5 text-left hover:bg-gray-100"
+                        >
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}

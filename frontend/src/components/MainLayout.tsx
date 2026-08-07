@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Sidebar } from './Sidebar'
-import { MapView, type CamadaWms, type Destino } from './Map/MapView'
+import { MapView, type CamadaWms, type Destino, type DestaqueProprietario } from './Map/MapView'
 import { DetailPanel } from './DetailPanel'
 import { CadastroWizard } from './Wizard/CadastroWizard'
 import { QuadrasPanel } from './Quadras/QuadrasPanel'
 import { ProvisoriosPanel } from './Provisorios/ProvisoriosPanel'
 import { LogradourosPanel } from './Logradouros/LogradourosPanel'
+import { RelatorioInconsistencias } from './Relatorios/RelatorioInconsistencias'
+import { RelatorioProprietario } from './Relatorios/RelatorioProprietario'
+import { ManualSistema } from './Relatorios/ManualSistema'
 import { OperadoresPanel } from './Operadores/OperadoresPanel'
 import { AuditoriaPanel } from './Auditoria/AuditoriaPanel'
 import { MinhaAtividade } from './Auditoria/MinhaAtividade'
@@ -41,6 +44,10 @@ export function MainLayout() {
   const [quadrasAberto, setQuadrasAberto] = useState(false)
   const [provisoriosAberto, setProvisoriosAberto] = useState(false)
   const [logradourosAberto, setLogradourosAberto] = useState(false)
+  const [relatorioInconsistenciasAberto, setRelatorioInconsistenciasAberto] = useState(false)
+  const [relatorioProprietarioAberto, setRelatorioProprietarioAberto] = useState(false)
+  const [manualSistemaAberto, setManualSistemaAberto] = useState(false)
+  const [destaqueProprietario, setDestaqueProprietario] = useState<DestaqueProprietario | null>(null)
   const [operadoresAberto, setOperadoresAberto] = useState(false)
   const [auditoriaAberto, setAuditoriaAberto] = useState(false)
   const [minhaAtividadeAberto, setMinhaAtividadeAberto] = useState(false)
@@ -62,6 +69,7 @@ export function MainLayout() {
   const [medirDistanciaEm, setMedirDistanciaEm] = useState(0)
   const [medirAreaEm, setMedirAreaEm] = useState(0)
   const [ajusteTopologicoEm, setAjusteTopologicoEm] = useState(0)
+  const [certidaoLogradouroEm, setCertidaoLogradouroEm] = useState(0)
   // Árvores independentes (Cadastros e Quadras) — cada uma controla sua própria camada no
   // mapa, sem afetar a outra.
   const [ramosOcultosCadastros, setRamosOcultosCadastros] = useState<Set<string>>(new Set())
@@ -255,6 +263,11 @@ export function MainLayout() {
     onMedirDistancia: () => setMedirDistanciaEm((n) => n + 1),
     onMedirArea: () => setMedirAreaEm((n) => n + 1),
     onAjusteTopologico: () => setAjusteTopologicoEm((n) => n + 1),
+    onCertidaoLogradouro: () => setCertidaoLogradouroEm((n) => n + 1),
+    onRelatorioInconsistencias: () => setRelatorioInconsistenciasAberto(true),
+    onRelatorioProprietario: () => setRelatorioProprietarioAberto(true),
+    onManualSistema: () => setManualSistemaAberto(true),
+    onMaterialDivulgacao: () => window.open('/divulgacao/index.html', '_blank'),
   }
 
   return (
@@ -313,10 +326,13 @@ export function MainLayout() {
             ajusteTopologicoEm={ajusteTopologicoEm}
             onAjusteTopologicoSalvo={() => setRecarregarEm((n) => n + 1)}
             onAjusteTopologicoErro={mostrarAviso}
+            certidaoLogradouroEm={certidaoLogradouroEm}
+            onCertidaoLogradouroErro={mostrarAviso}
             ramosOcultosCadastros={ramosOcultosCadastros}
             ramosOcultosQuadras={ramosOcultosQuadras}
             ramosOcultosLogradouros={ramosOcultosLogradouros}
             idsConflitoGeometria={conflitosGeometria.map((c) => c.id)}
+            destaqueProprietario={destaqueProprietario}
           />
           <DetailPanel
             feature={selecionado}
@@ -379,6 +395,13 @@ export function MainLayout() {
           onSelecionar={selecionarLogradouro}
         />
       )}
+      {relatorioInconsistenciasAberto && (
+        <RelatorioInconsistencias onClose={() => setRelatorioInconsistenciasAberto(false)} onSelecionarImovel={selecionarImovel} />
+      )}
+      {relatorioProprietarioAberto && (
+        <RelatorioProprietario onClose={() => setRelatorioProprietarioAberto(false)} onDestacar={setDestaqueProprietario} />
+      )}
+      {manualSistemaAberto && <ManualSistema onClose={() => setManualSistemaAberto(false)} />}
       {operadoresAberto && <OperadoresPanel onClose={() => setOperadoresAberto(false)} />}
       {auditoriaAberto && <AuditoriaPanel onClose={() => setAuditoriaAberto(false)} />}
       {minhaAtividadeAberto && <MinhaAtividade onClose={() => setMinhaAtividadeAberto(false)} />}
@@ -412,9 +435,17 @@ export function MainLayout() {
               Cadastro, georreferenciamento e gestão de imóveis urbanos, quadras, delimitações
               provisórias, unidades autônomas e integração SINTER/CADURB.
             </p>
+            <a
+              href="/divulgacao/index.html"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 block text-center text-xs font-medium text-[#2980b9] hover:underline"
+            >
+              📄 Ver material de divulgação
+            </a>
             <button
               onClick={() => setSobreAberto(false)}
-              className="mt-5 w-full rounded bg-navy py-2 text-sm font-medium text-white hover:bg-navy/90"
+              className="mt-3 w-full rounded bg-navy py-2 text-sm font-medium text-white hover:bg-navy/90"
             >
               Fechar
             </button>

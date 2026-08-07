@@ -7,6 +7,7 @@ import { centroidePoligono } from '../utils/geo'
 import { USO_LABEL, STATUS_LABEL } from '../constants/imovel'
 import { CADURB_TIPO_LABEL, TP_ARQ_LABEL, DEST_LABEL, PADRAO_LABEL } from './Wizard/types'
 import { exportarImovelGeoJSON, exportarImovelKML, imprimirFichaCadastral } from '../utils/exportarImovel'
+import { areaInconsistente } from '../utils/areaInconsistencia'
 import { SinterModal } from './SinterModal'
 import { UAModal } from './UA/UAModal'
 import { EditarImovelPanel } from './EditarImovelPanel'
@@ -24,13 +25,6 @@ function formatarMoeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-// Mesma fórmula usada em Wizard/Step4Cadastrais.tsx para o alerta de área durante o
-// cadastro — reaproveitada aqui para a ficha, que compara os dois valores já salvos.
-function diferencaPercentual(cad: number | null, geo: number | null) {
-  if (cad == null || geo == null || cad === 0) return null
-  return ((geo - cad) / cad) * 100
-}
-
 const AVISO_INCONSISTENCIA =
   'Inconsistência de áreas: diferença superior a 10% entre a área cadastral e a área georreferenciada.'
 
@@ -43,8 +37,7 @@ type BlocoAreaProps = {
 }
 
 function BlocoArea({ titulo, cad, geo, avisoOk, onDispensar }: BlocoAreaProps) {
-  const diferenca = diferencaPercentual(cad, geo)
-  const inconsistente = diferenca != null && Math.abs(diferenca) > 10 && !avisoOk
+  const inconsistente = areaInconsistente(cad, geo, avisoOk)
   return (
     <>
       {cad != null && (

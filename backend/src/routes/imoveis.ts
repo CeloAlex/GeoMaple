@@ -9,6 +9,7 @@ import {
   editarImovel,
   excluirImovel,
   verificarDuplicidade,
+  imoveisPorProprietario,
 } from '../services/imovelService'
 import { atualizarGeometria, obterGeometria } from '../services/geoService'
 import { listarUnidades, criarUnidade, editarUnidade, excluirUnidade } from '../services/uaService'
@@ -63,6 +64,15 @@ router.get('/verificar-duplicidade', auth, async (req, res) => {
       excluirId: excluirId !== undefined ? Number(excluirId) : undefined,
     })
     res.json(candidatos)
+  } catch (e) {
+    tratarErro(e, res)
+  }
+})
+
+// Precisa vir antes de GET /:id — senão "por-proprietario" seria interpretado como id.
+router.get('/por-proprietario', auth, async (req, res) => {
+  try {
+    res.json(await imoveisPorProprietario(String(req.query.prop ?? '')))
   } catch (e) {
     tratarErro(e, res)
   }

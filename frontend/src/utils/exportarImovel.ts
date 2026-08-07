@@ -4,6 +4,7 @@ import { CADURB_TIPO_LABEL, TP_ARQ_LABEL, DEST_LABEL, PADRAO_LABEL } from '../co
 import { baixarArquivo, poligonoParaKML } from './download'
 import { mosaicoSatelite } from './fichaMapa'
 import { centroidePoligono } from './geo'
+import { areaInconsistente as inconsistente } from './areaInconsistencia'
 
 export function exportarImovelGeoJSON(feature: ImovelFeature) {
   const conteudo = JSON.stringify({ type: 'FeatureCollection', features: [feature] }, null, 2)
@@ -20,12 +21,6 @@ const AVISO_INCONSISTENCIA_FICHA =
 
 function formatarAreaM2(m2: number) {
   return m2.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m²'
-}
-
-// Mesma fórmula usada em DetailPanel.tsx/Wizard/Step4Cadastrais.tsx.
-function inconsistente(cad: number | null, geo: number | null, avisoOk: boolean) {
-  if (cad == null || geo == null || cad === 0 || avisoOk) return false
-  return Math.abs(((geo - cad) / cad) * 100) > 10
 }
 
 export function imprimirFichaCadastral(feature: ImovelSelecionado, municipioNome: string, municipioUf: string) {

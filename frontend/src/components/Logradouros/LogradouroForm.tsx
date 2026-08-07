@@ -4,9 +4,6 @@ import { SingleLineDraw, type SingleLineHandle } from '../Map/SingleLineDraw'
 import { MapaExpansivel, InvalidateSizeAoMudar } from '../Map/MapaExpansivel'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from '../Map/constants'
 import { useMunicipioStore } from '../../store/municipioStore'
-import { api } from '../../api/client'
-import type { Certidao } from '../../types/logradouro'
-import { imprimirCertidaoExistencia, imprimirCertidaoIdentificacao } from '../../utils/exportarLogradouro'
 import { TIPO_LABEL, SITUACAO_LABEL, type LogradouroFormData } from './types'
 
 const COR_LOGRADOURO = '#16a085'
@@ -21,20 +18,17 @@ function extrairErro(err: unknown, fallback: string) {
 
 type Props = {
   titulo: string
-  id?: number
   inicial: LogradouroFormData
   onSalvar: (dados: LogradouroFormData) => Promise<void>
   onCancelar: () => void
 }
 
-export function LogradouroForm({ titulo, id, inicial, onSalvar, onCancelar }: Props) {
+export function LogradouroForm({ titulo, inicial, onSalvar, onCancelar }: Props) {
   const centro = useMunicipioStore((s) => s.municipio.centro)
-  const municipio = useMunicipioStore((s) => s.municipio)
   const [form, setForm] = useState<LogradouroFormData>(inicial)
   const [comprimento, setComprimento] = useState<number | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [emitindo, setEmitindo] = useState<'existencia' | 'identificacao' | null>(null)
   const drawRef = useRef<SingleLineHandle>(null)
   const [expandido, setExpandido] = useState(false)
 
@@ -52,48 +46,6 @@ export function LogradouroForm({ titulo, id, inicial, onSalvar, onCancelar }: Pr
       setErro(extrairErro(err, 'Falha ao salvar'))
     } finally {
       setSalvando(false)
-    }
-  }
-
-  async function emitirExistencia() {
-    if (!form.nome.trim()) return setErro('Informe o nome para consultar a existência de denominação')
-    setErro(null)
-    setEmitindo('existencia')
-    try {
-      const { data: homonimos } = await api.get<{ nome: string; tipo: string; situacao: string }[]>('/api/logradouros/buscar', {
-        params: { nome: form.nome.trim() },
-      })
-      const { data: certidao } = await api.post<Certidao>('/api/certidoes', {
-        tipo: 'existencia_denominacao',
-        nomeConsultado: form.nome.trim(),
-      })
-      imprimirCertidaoExistencia(certidao, form.nome.trim(), homonimos, municipio.nome, municipio.uf)
-    } catch (err) {
-      setErro(extrairErro(err, 'Não foi possível emitir a certidão'))
-    } finally {
-      setEmitindo(null)
-    }
-  }
-
-  async function emitirIdentificacao() {
-    if (!id) return
-    setErro(null)
-    setEmitindo('identificacao')
-    try {
-      const { data: certidao } = await api.post<Certidao>('/api/certidoes', {
-        tipo: 'identificacao_logradouro',
-        logradouroId: id,
-      })
-      imprimirCertidaoIdentificacao(
-        certidao,
-        { nome: form.nome, tipo: form.tipo, situacao: form.situacao, geom: form.geom },
-        municipio.nome,
-        municipio.uf,
-      )
-    } catch (err) {
-      setErro(extrairErro(err, 'Não foi possível emitir a certidão'))
-    } finally {
-      setEmitindo(null)
     }
   }
 
@@ -271,29 +223,6 @@ export function LogradouroForm({ titulo, id, inicial, onSalvar, onCancelar }: Pr
       >
         {salvando ? 'Salvando…' : '💾 Salvar logradouro'}
       </button>
-
-      <fieldset className="rounded border border-gray-200 p-2.5">
-        <legend className="px-1 text-xs font-medium text-gray-700">Certidões</legend>
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={emitirExistencia}
-            disabled={emitindo !== null}
-            className="rounded border border-navy px-3 py-1.5 text-xs font-medium text-navy hover:bg-navy/5 disabled:opacity-60"
-          >
-            {emitindo === 'existencia' ? 'Emitindo…' : '📄 Certidão de Existência de Denominação'}
-          </button>
-          <button
-            type="button"
-            onClick={emitirIdentificacao}
-            disabled={emitindo !== null || !id}
-            title={id ? undefined : 'Salve o logradouro antes de emitir esta certidão'}
-            className="rounded border border-navy px-3 py-1.5 text-xs font-medium text-navy hover:bg-navy/5 disabled:opacity-60"
-          >
-            {emitindo === 'identificacao' ? 'Emitindo…' : '📄 Certidão de Identificação do Logradouro'}
-          </button>
-        </div>
-      </fieldset>
     </div>
   )
 }

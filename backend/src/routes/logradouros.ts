@@ -9,6 +9,7 @@ import {
   editarLogradouro,
   excluirLogradouro,
   buscarPorNome,
+  verificarDenominacao,
 } from '../services/logradouroService'
 
 const router = Router()
@@ -33,6 +34,16 @@ router.get('/buscar', auth, async (req, res) => {
   if (!nome) return res.json([])
   try {
     res.json(await buscarPorNome(nome))
+  } catch (e) {
+    tratarErro(e, res)
+  }
+})
+
+// Certidão de Denominação de Logradouro (TESTE 7) — valida um eixo desenhado avulso
+// (não salvo como Logradouro) antes da emissão.
+router.post('/verificar-denominacao', auth, async (req, res) => {
+  try {
+    res.json(await verificarDenominacao(req.body.nome, req.body.geom))
   } catch (e) {
     tratarErro(e, res)
   }

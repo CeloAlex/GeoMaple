@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GeoMaple · Gestão Cadastral Imobiliária Municipal</title>
+<style>
+  :root {
+    --navy: #1a3050;
+    --verde: #4a9c2a;
+    --ambar: #c9a227;
+    --ua: #6c3483;
+    --azul: #2980b9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+    color: #1f2933;
+    background: #eef1f5;
+  }
+  .pagina {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 48px 56px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 3px solid var(--navy);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  header img { width: 96px; height: auto; }
+  header h1 {
+    margin: 0;
+    color: var(--navy);
+    font-size: 28px;
+  }
+  header p {
+    margin: 4px 0 0;
+    color: #52606d;
+    font-size: 14px;
+  }
+  .chamada {
+    font-size: 17px;
+    line-height: 1.55;
+    color: #334155;
+    margin-bottom: 32px;
+  }
+  .chamada strong { color: var(--navy); }
+  h2.secao {
+    color: var(--navy);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-left: 4px solid var(--verde);
+    padding-left: 10px;
+    margin: 32px 0 16px;
+  }
+  .grade {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .card {
+    border: 1px solid #dde3ea;
+    border-radius: 8px;
+    padding: 16px 18px;
+    background: #fafbfc;
+  }
+  .card .icone { font-size: 22px; }
+  .card h3 {
+    margin: 6px 0 6px;
+    font-size: 14.5px;
+    color: var(--navy);
+  }
+  .card p {
+    margin: 0;
+    font-size: 13px;
+    color: #52606d;
+    line-height: 1.5;
+  }
+  .faixa {
+    margin-top: 36px;
+    background: var(--navy);
+    color: #fff;
+    border-radius: 10px;
+    padding: 22px 26px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+  }
+  .faixa h3 { margin: 0 0 4px; font-size: 16px; }
+  .faixa p { margin: 0; font-size: 13px; color: #cbd5e1; }
+  .selo {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.12);
+    white-space: nowrap;
+  }
+  .rodape {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid #dde3ea;
+    font-size: 11.5px;
+    color: #97a3b0;
+    display: flex;
+    justify-content: space-between;
+  }
+  .imprimir {
+    max-width: 900px;
+    margin: 16px auto 0;
+    text-align: right;
+  }
+  .imprimir button {
+    background: var(--azul);
+    color: #fff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .imprimir button:hover { opacity: 0.9; }
+
+  @media print {
+    body { background: #fff; }
+    .pagina { padding: 0; max-width: none; }
+    .imprimir { display: none; }
+  }
+  @media (max-width: 680px) {
+    .grade { grid-template-columns: 1fr; }
+    .pagina { padding: 28px 20px; }
+    .faixa { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="imprimir">
+  <button onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
+</div>
+
+<div class="pagina">
+  <header>
+    <img src="logo.png" alt="GeoMaple" />
+    <div>
+      <h1>GeoMaple</h1>
+      <p>Sistema de Gestão Cadastral Imobiliária Municipal (SGCIM)</p>
+    </div>
+  </header>
+
+  <p class="chamada">
+    O <strong>GeoMaple</strong> reúne, num só lugar, o cadastro imobiliário do município e sua
+    representação geográfica: imóveis, quadras e logradouros passam a existir simultaneamente como
+    registro administrativo e como geometria no mapa — sempre em sincronia, sempre auditável.
+  </p>
+
+  <h2 class="secao">Funcionalidades principais</h2>
+  <div class="grade">
+    <div class="card">
+      <div class="icone">🏠</div>
+      <h3>Cadastro definitivo e delimitação provisória</h3>
+      <p>Assistente guiado para cadastrar imóveis com dados cadastrais, geometria e situação (regular, em fiscalização, para revisão).</p>
+    </div>
+    <div class="card">
+      <div class="icone">🗂️</div>
+      <h3>Quadras e logradouros georreferenciados</h3>
+      <p>Organização hierárquica por distrito, bairro e logradouro, com visibilidade individual de cada camada no mapa.</p>
+    </div>
+    <div class="card">
+      <div class="icone">🛰️</div>
+      <h3>Mapa integrado com camadas externas</h3>
+      <p>Base de satélite e ruas, com catálogo GeoNetwork para adicionar camadas WMS de outras fontes oficiais.</p>
+    </div>
+    <div class="card">
+      <div class="icone">📜</div>
+      <h3>Certidões oficiais com QR Code</h3>
+      <p>Emissão de certidão de denominação de logradouro com validação automática de homônimos e sobreposições, numeração sequencial anual e QR Code de verificação.</p>
+    </div>
+    <div class="card">
+      <div class="icone">📊</div>
+      <h3>Relatórios gerenciais</h3>
+      <p>Mapa de localização de todos os imóveis de um proprietário e relatório de inconsistências entre área cadastral e georreferenciada.</p>
+    </div>
+    <div class="card">
+      <div class="icone">🔍</div>
+      <h3>Auditoria completa</h3>
+      <p>Toda criação, edição e exclusão fica registrada — quem, quando e o que mudou — com histórico consultável a qualquer momento.</p>
+    </div>
+    <div class="card">
+      <div class="icone">🌐</div>
+      <h3>Integração SINTER/CADURB</h3>
+      <p>Transmissão dos dados cadastrais para os sistemas federais de integração de registros territoriais.</p>
+    </div>
+    <div class="card">
+      <div class="icone">👤</div>
+      <h3>Controle de usuários e permissões</h3>
+      <p>Gestão de operadores com papéis distintos, garantindo rastreabilidade e segurança de acesso.</p>
+    </div>
+  </div>
+
+  <div class="faixa">
+    <div>
+      <h3>Um cadastro. Um mapa. Uma única fonte da verdade.</h3>
+      <p>Menos retrabalho, mais confiabilidade na gestão territorial do município.</p>
+    </div>
+    <div class="selo">SGCIM · GeoMaple</div>
+  </div>
+
+  <div class="rodape">
+    <span>GeoMaple — Sistema de Gestão Cadastral Imobiliária Municipal</span>
+    <span>Material institucional</span>
+  </div>
+</div>
+
+</body>
+</html>

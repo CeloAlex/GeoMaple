@@ -1,5 +1,6 @@
 import type { WizardFormData } from './types'
 import { USO_LABEL, STATUS_LABEL, CADURB_TIPO_LABEL, TP_ARQ_LABEL, DEST_LABEL, PADRAO_LABEL } from './types'
+import { diferencaPercentualArea } from '../../utils/areaInconsistencia'
 
 type Props = {
   form: WizardFormData
@@ -18,10 +19,7 @@ export function Step4Cadastrais({ form, set }: Props) {
   }
 
   const atCadNum = parseFloat(form.at_cad)
-  const diferencaArea =
-    !Number.isNaN(atCadNum) && atCadNum > 0 && form.areaTerrenoCalc
-      ? ((form.areaTerrenoCalc - atCadNum) / atCadNum) * 100
-      : null
+  const diferencaArea = diferencaPercentualArea(!Number.isNaN(atCadNum) && atCadNum > 0 ? atCadNum : null, form.areaTerrenoCalc)
 
   return (
     <div className="space-y-5">

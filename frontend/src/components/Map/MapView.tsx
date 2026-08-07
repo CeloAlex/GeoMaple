@@ -6,6 +6,7 @@ import type { ImovelFeature, ImovelFeatureCollection } from '../../types/imovel'
 import type { Quadra } from '../../types/quadra'
 import type { Provisorio } from '../../types/provisorio'
 import type { Logradouro } from '../../types/logradouro'
+import { logradouroOculto } from '../../utils/logradouroOculto'
 import type { CamadaImportada } from '../../utils/importarGeo'
 import { useMunicipioStore } from '../../store/municipioStore'
 import { ESRI_WORLD_IMAGERY, ESRI_MAX_NATIVE_ZOOM, MAX_ZOOM, OSM_STREETS } from './constants'
@@ -13,6 +14,7 @@ import { Regua } from './Regua'
 import { ReguaArea } from './ReguaArea'
 import { PontoGeorreferenciado } from './PontoGeorreferenciado'
 import { AjusteTopologicoTool } from './AjusteTopologicoTool'
+import { CertidaoLogradouroTool } from './CertidaoLogradouroTool'
 import { Legend } from './Legend'
 import { StatusBar } from './StatusBar'
 import { aplicarLocalePtBr } from './leafletDrawLocale'
@@ -22,6 +24,12 @@ import L from 'leaflet'
 aplicarLocalePtBr()
 
 export type Destino = { lat: number; lng: number; zoom?: number }
+// Relatório "Mapa por proprietário" — só os campos que a camada de destaque precisa (não a
+// ImovelFeatureCollection completa, que exige uso/st/at_cad/etc.).
+export type DestaqueProprietario = {
+  type: 'FeatureCollection'
+  features: { type: 'Feature'; geometry: { type: 'Polygon'; coordinates: number[][][] }; properties: { id: number; insc: string } }[]
+}
 export type CamadaWms = {
   id: string
   nome: string
@@ -153,7 +161,7 @@ function CamadaLogradouros({
   const fc = {
     type: 'FeatureCollection' as const,
     features: lista
-      .filter((l) => l.geom && !(ramosOcultos && ramosOcultos.has(String(l.id))))
+      .filter((l) => l.geom && !(ramosOcultos && logradouroOculto(ramosOcultos, l.distrito, l.bairros, l.id)))
       .map((l) => ({
         type: 'Feature' as const,
         geometry: l.geom!,
@@ -303,6 +311,38 @@ function FitTodos({ comandoEm, dados }: { comandoEm?: number; dados: ImovelFeatu
   return null
 }
 
+// Relatório "Mapa por proprietário": camada própria (não a de Imóveis do viewport atual —
+// o proprietário pode ter lotes fora da área carregada) com todos os lotes encontrados,
+// em destaque, e enquadra o mapa neles assim que chegam.
+function CamadaDestaqueProprietario({ dados }: { dados: DestaqueProprietario | null | undefined }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!dados || dados.features.length === 0) return
+    try {
+      const layer = L.geoJSON(dados as never)
+      const bounds = layer.getBounds()
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 19 })
+    } catch {
+      // Geometria inválida — nada para enquadrar
+    }
+  }, [dados, map])
+
+  if (!dados || dados.features.length === 0) return null
+
+  return (
+    <GeoJSON
+      key={dados.features.map((f) => f.properties.id).join(',')}
+      data={dados as never}
+      style={{ color: '#e67e22', weight: 3, fillColor: '#e67e22', fillOpacity: 0.4 } as never}
+      onEachFeature={(feature, layer: Layer) => {
+        const insc = (feature.properties as { insc?: string }).insc
+        if (insc) layer.bindTooltip(insc)
+      }}
+    />
+  )
+}
+
 // Camada WMS adicionada manualmente (Sidebar/Ferramentas.tsx) ou via catálogo GeoNetwork.
 // Sem tratamento de tileerror o Leaflet só mostra tiles em branco quando o servidor
 // retorna uma ServiceException (nome técnico errado, versão incompatível etc.), sem
@@ -360,6 +400,8 @@ type Props = {
   ajusteTopologicoEm?: number
   onAjusteTopologicoSalvo?: () => void
   onAjusteTopologicoErro?: (msg: string) => void
+  certidaoLogradouroEm?: number
+  onCertidaoLogradouroErro?: (msg: string) => void
   // Independentes: uma árvore controla a camada de Cadastros (imóveis), a outra a de
   // Quadras (Sidebar/ArvoreCadastros.tsx e ArvoreQuadras.tsx) — ver MainLayout.tsx.
   ramosOcultosCadastros?: Set<string>
@@ -368,6 +410,10 @@ type Props = {
   // Imóveis destacados em vermelho por sobrepor a geometria em edição no wizard/painel de
   // edição (409 em PUT .../geometria) — ver MainLayout.tsx `conflitosGeometria`.
   idsConflitoGeometria?: number[]
+  // Relatório "Mapa por proprietário" (Relatorios/RelatorioProprietario.tsx): camada
+  // própria (não depende da camada de Imóveis do viewport atual — o proprietário pode ter
+  // lotes fora da área visível) com todos os imóveis do proprietário buscado, em destaque.
+  destaqueProprietario?: DestaqueProprietario | null
 }
 
 export function MapView({
@@ -388,10 +434,13 @@ export function MapView({
   ajusteTopologicoEm,
   onAjusteTopologicoSalvo,
   onAjusteTopologicoErro,
+  certidaoLogradouroEm,
+  onCertidaoLogradouroErro,
   ramosOcultosCadastros,
   ramosOcultosQuadras,
   ramosOcultosLogradouros,
   idsConflitoGeometria,
+  destaqueProprietario,
 }: Props) {
   const [dados, setDados] = useState<ImovelFeatureCollection>(VAZIO)
   const centro = useMunicipioStore((s) => s.municipio.centro)
@@ -497,8 +546,10 @@ export function MapView({
         onSalvo={onAjusteTopologicoSalvo}
         onErro={onAjusteTopologicoErro}
       />
+      <CertidaoLogradouroTool iniciarEm={certidaoLogradouroEm} onErro={onCertidaoLogradouroErro} />
       <Voador destino={voarPara ?? null} />
       <FitTodos comandoEm={fitTodosEm} dados={dados} />
+      <CamadaDestaqueProprietario dados={destaqueProprietario} />
       <BuscadorDeImoveis onData={setDados} recarregarEm={recarregarEm} />
       <Legend />
       <SetaNorte />

@@ -3,14 +3,17 @@ import { prisma } from '../db'
 import { AppError } from '../utils/errors'
 import { registrarAuditoria } from './auditService'
 
-const TIPOS_CERTIDAO = ['existencia_denominacao', 'identificacao_logradouro']
+// 'existencia_denominacao'/'identificacao_logradouro' não são mais emitidos por nenhuma
+// tela (unificados em 'denominacao_logradouro', TESTE 7) — continuam na lista só para não
+// quebrar a verificação pública (GET /verificar/:codigo) de certidões já emitidas.
+const TIPOS_CERTIDAO = ['existencia_denominacao', 'identificacao_logradouro', 'denominacao_logradouro']
 
 // Emite uma certidão, alocando o próximo número sequencial do ano para o tipo (ex.:
 // "001/2026", "002/2026"...) e um código de verificação único. `pg_advisory_xact_lock`
 // serializa emissões concorrentes do MESMO tipo+ano (mesma trava dentro da transação, sem
 // precisar de linha existente para travar — importante para a primeira certidão do ano).
 export async function emitirCertidao(
-  dados: { tipo?: string; logradouroId?: number; nomeConsultado?: string },
+  dados: { tipo?: string; logradouroId?: number; nomeConsultado?: string; resultadoValidacao?: unknown },
   solicitanteId: number,
 ) {
   const tipo = dados.tipo
@@ -56,7 +59,13 @@ export async function emitirCertidao(
     userId: solicitanteId,
     acao: 'CERTIDAO_EMITIDA',
     entidade: `Certidao:${certidao.id}`,
-    detalhe: { tipo, numero: certidao.numero, logradouroId: dados.logradouroId, nomeConsultado: dados.nomeConsultado },
+    detalhe: {
+      tipo,
+      numero: certidao.numero,
+      logradouroId: dados.logradouroId,
+      nomeConsultado: dados.nomeConsultado,
+      ...(dados.resultadoValidacao ? { resultadoValidacao: dados.resultadoValidacao } : {}),
+    },
   })
 
   return { ...certidao, logradouro }

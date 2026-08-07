@@ -240,6 +240,27 @@ export async function verificarDuplicidade(params: {
   return [...encontrados.values()]
 }
 
+type ImovelGeomRow = { id: number; insc: string; prop: string; geom: string }
+
+// Relatório "Mapa de localização dos imóveis por proprietário" (TESTE 7) — lista GERAL do
+// Prisma (`listarImoveis`/GET /api/imoveis) não traz `geom` (tipo Unsupported, sempre
+// ignorado pelo ORM); esta consulta usa SQL puro + ST_AsGeoJSON, mesmo padrão de
+// imoveisNoBbox (geoService.ts), para poder destacar todos os lotes do proprietário no
+// mapa principal de uma vez.
+export async function imoveisPorProprietario(prop: string) {
+  const termo = prop.trim()
+  if (!termo) throw new AppError(400, 'prop é obrigatório')
+
+  const rows = await prisma.$queryRaw<ImovelGeomRow[]>`
+    SELECT id, insc, prop, ST_AsGeoJSON(geom) AS geom
+    FROM "Imovel"
+    WHERE ativo = true AND geom IS NOT NULL AND prop ILIKE ${'%' + termo + '%'}
+    ORDER BY insc ASC
+  `
+
+  return rows.map((r) => ({ id: r.id, insc: r.insc, prop: r.prop, geom: JSON.parse(r.geom) }))
+}
+
 export async function excluirImovel(id: number, solicitante: { id: number }) {
   const imovel = await prisma.imovel.findUnique({ where: { id } })
   if (!imovel) throw new AppError(404, 'Imóvel não encontrado')
