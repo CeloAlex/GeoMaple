@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { AppError } from '../utils/errors'
 import { validarPolygonGeoJSON, PolygonGeoJSON } from '../utils/geojson'
@@ -6,6 +7,28 @@ import { registrarAuditoria } from './auditService'
 type GeomRow = { at_geo: number | null; ac_geo: number | null; geom: string | null; geom_bld: string | null }
 
 type ConflitoSobreposicao = { id: number; insc: string; prop: string }
+
+// Uma geometria ajustada à mão (ex.: Ajuste Topológico, com snap visual num vértice de um
+// vizinho) praticamente nunca produz um toque geometricamente EXATO em ponto flutuante —
+// sobra sempre uma fresta/sobreposição de poucos cm² ("sliver"). Exigir ST_Touches exato
+// (como antes) rejeitava com 409 até ajustes corretos. Só tratamos como conflito real
+// quando a área da interseção ultrapassa esta tolerância — pequena o bastante para nunca
+// mascarar a sobreposição real de dois lotes urbanos distintos.
+const TOLERANCIA_SOBREPOSICAO_M2 = 0.5
+
+// Reusada tanto pelo salvamento de um único lote (atualizarGeometria) quanto pelo Ajuste
+// Topológico em lote (salvarAjusteTopologico) — roda dentro da mesma transação do
+// chamador. `idsExcluir` são os lotes que fazem parte do MESMO salvamento (não devem
+// conflitar entre si, esse é o resultado esperado de compartilhar uma aresta/vértice).
+async function verificarConflitoSobreposicao(tx: Prisma.TransactionClient, idsExcluir: number[], geojson: string) {
+  if (idsExcluir.length === 0) throw new AppError(500, 'idsExcluir não pode ser vazio')
+  return tx.$queryRaw<ConflitoSobreposicao[]>`
+    SELECT id, insc, prop FROM "Imovel"
+    WHERE ativo = true AND geom IS NOT NULL AND id NOT IN (${Prisma.join(idsExcluir)})
+      AND ST_Intersects(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))
+      AND ST_Area(ST_Intersection(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))::geography) > ${TOLERANCIA_SOBREPOSICAO_M2}
+  `
+}
 
 export async function lerGeometria(id: number) {
   const rows = await prisma.$queryRaw<GeomRow[]>`
@@ -63,18 +86,13 @@ export async function atualizarGeometria(
     if (dados.geom !== undefined) {
       const geojson = JSON.stringify(dados.geom as PolygonGeoJSON)
 
-      // Bloqueia sobreposição com outro terreno já cadastrado — mas não com quem só
-      // encosta na borda (ST_Touches), já que compartilhar uma aresta entre confrontantes
-      // é justamente o resultado desejado do Ajuste Topológico. `geom IS NOT NULL` já
-      // exclui toda Unidade Autônoma (nunca tem geometria própria — sempre NULL), então
-      // nenhuma UA nunca aparece aqui nem como candidata a conflito nem como alvo da
+      // Bloqueia sobreposição real com outro terreno já cadastrado — mas não uma sobra de
+      // poucos cm² (ver TOLERANCIA_SOBREPOSICAO_M2), já que compartilhar uma aresta entre
+      // confrontantes é justamente o resultado desejado do Ajuste Topológico. `geom IS NOT
+      // NULL` já exclui toda Unidade Autônoma (nunca tem geometria própria — sempre NULL),
+      // então nenhuma UA nunca aparece aqui nem como candidata a conflito nem como alvo da
       // checagem (id sempre resolvido para o terreno via resolverIdTerreno acima).
-      const conflitos = await tx.$queryRaw<ConflitoSobreposicao[]>`
-        SELECT id, insc, prop FROM "Imovel"
-        WHERE ativo = true AND geom IS NOT NULL AND id != ${idTerreno}
-          AND ST_Intersects(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))
-          AND NOT ST_Touches(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))
-      `
+      const conflitos = await verificarConflitoSobreposicao(tx, [idTerreno], geojson)
       if (conflitos.length > 0) {
         throw new AppError(
           409,
@@ -121,6 +139,94 @@ export async function atualizarGeometria(
   }
 
   return obterGeometria(idTerreno)
+}
+
+type AjusteVizinho = { id: number; geom: unknown }
+
+// Ajuste Topológico (estilo QGIS "topological editing"): quando um vértice arrastado
+// coincide com um vértice de um lote vizinho, o vizinho é movido junto (ver
+// frontend/src/components/Map/AjusteTopologicoTool.tsx) — os dois precisam ser salvos
+// atomicamente com o MESMO vértice, senão o encaixe se perde na próxima edição de
+// qualquer um dos dois. `vizinhosAfetados` já vem com as geometrias completas recalculadas
+// pelo cliente (não só o vértice movido). Não usa `resolverIdTerreno` nos vizinhos: eles
+// vêm de /api/geo/bbox, que já exclui Unidades Autônomas (geom sempre NULL nelas).
+export async function salvarAjusteTopologico(
+  idPrincipal: number,
+  geom: unknown,
+  vizinhosAfetados: AjusteVizinho[],
+  solicitante: { id: number },
+) {
+  const { imovel, idTerreno } = await resolverIdTerreno(idPrincipal)
+
+  if (!validarPolygonGeoJSON(geom)) {
+    throw new AppError(400, 'geom deve ser um GeoJSON Polygon válido (anel fechado, SRID 4326)')
+  }
+  for (const v of vizinhosAfetados) {
+    if (!validarPolygonGeoJSON(v.geom)) {
+      throw new AppError(400, `geom do vizinho ${v.id} deve ser um GeoJSON Polygon válido (anel fechado, SRID 4326)`)
+    }
+  }
+
+  const idsVizinhos = vizinhosAfetados.map((v) => v.id)
+  const idsLote = [idTerreno, ...idsVizinhos]
+  const geomPorId = new Map<number, unknown>([[idTerreno, geom], ...vizinhosAfetados.map((v): [number, unknown] => [v.id, v.geom])])
+
+  await prisma.$transaction(async (tx) => {
+    const idsPorInsc = new Map<number, string>([[idTerreno, imovel.insc]])
+
+    if (idsVizinhos.length > 0) {
+      const vizinhosExistentes = await tx.$queryRaw<{ id: number; insc: string }[]>`
+        SELECT id, insc FROM "Imovel" WHERE id IN (${Prisma.join(idsVizinhos)}) AND ativo = true AND geom IS NOT NULL
+      `
+      if (vizinhosExistentes.length !== idsVizinhos.length) {
+        throw new AppError(400, 'Um ou mais lotes vizinhos informados não existem ou não têm geometria própria')
+      }
+      for (const v of vizinhosExistentes) idsPorInsc.set(v.id, v.insc)
+    }
+
+    // Cada lote do conjunto (principal + vizinhos) é checado contra todo o resto do
+    // cadastro — mas não contra os outros lotes do MESMO conjunto, já que compartilhar a
+    // aresta/vértice ajustado é justamente o resultado esperado.
+    for (const id of idsLote) {
+      const geojson = JSON.stringify(geomPorId.get(id))
+      const conflitos = await verificarConflitoSobreposicao(tx, idsLote, geojson)
+      if (conflitos.length > 0) {
+        throw new AppError(
+          409,
+          `Geometria de "${idsPorInsc.get(id)}" ficaria sobreposta à de ${conflitos.length > 1 ? `${conflitos.length} imóveis já cadastrados` : `"${conflitos[0].insc}" (já cadastrado)`}`,
+          conflitos,
+        )
+      }
+    }
+
+    for (const id of idsLote) {
+      const geojson = JSON.stringify(geomPorId.get(id))
+      await tx.$executeRaw`
+        UPDATE "Imovel"
+        SET geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326),
+            at_geo = ST_Area(ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326)::geography),
+            geo_dt = now()
+        WHERE id = ${id}
+      `
+    }
+  })
+
+  await registrarAuditoria({
+    userId: solicitante.id,
+    acao: 'IMOVEL_GEOMETRIA_EDITADA',
+    entidade: `Imovel:${idTerreno}`,
+    detalhe: { insc: imovel.insc, ajusteTopologico: true, vizinhosAfetados: idsVizinhos },
+  })
+  for (const v of vizinhosAfetados) {
+    await registrarAuditoria({
+      userId: solicitante.id,
+      acao: 'IMOVEL_GEOMETRIA_EDITADA',
+      entidade: `Imovel:${v.id}`,
+      detalhe: { ajusteTopologico: true, loteOrigem: idTerreno },
+    })
+  }
+
+  return Promise.all(idsLote.map((id) => obterGeometria(id)))
 }
 
 function parseBbox(bbox: unknown) {

@@ -88,7 +88,6 @@ export function MenuBar(acoes: AcoesShell) {
         { label: 'Inconsistências de área', onClick: acoes.onRelatorioInconsistencias },
         { label: 'Mapa por proprietário', onClick: acoes.onRelatorioProprietario },
         { label: 'Manual do sistema', onClick: acoes.onManualSistema },
-        { label: 'Material de divulgação', onClick: acoes.onMaterialDivulgacao },
       ],
     },
     {

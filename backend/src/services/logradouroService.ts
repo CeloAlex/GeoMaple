@@ -157,12 +157,19 @@ export async function excluirLogradouro(id: number, solicitanteId: number) {
 export async function buscarPorNome(nome: string) {
   return prisma.logradouro.findMany({
     where: { ativo: true, nome: { contains: nome.trim(), mode: 'insensitive' } },
-    select: { id: true, nome: true, tipo: true, situacao: true },
+    select: { id: true, nome: true, tipo: true, situacao: true, cep: true, leiNumero: true },
     take: 10,
   })
 }
 
-type LogradouroResumo = { id: number; nome: string; tipo: string; situacao: string }
+type LogradouroResumo = {
+  id: number
+  nome: string
+  tipo: string
+  situacao: string
+  cep: string | null
+  leiNumero: string | null
+}
 
 // Validações da Certidão de Denominação de Logradouro (TESTE 7): homônimos (mesmo nome ou
 // nome semelhante, reaproveitando buscarPorNome) e logradouros já cadastrados cuja
@@ -183,7 +190,7 @@ export async function verificarDenominacao(nome: unknown, geom: unknown): Promis
 
   const geojson = JSON.stringify(geom)
   const sobrepostos = await prisma.$queryRaw<LogradouroResumo[]>`
-    SELECT id, nome, tipo, situacao FROM "Logradouro"
+    SELECT id, nome, tipo, situacao, cep, "leiNumero" FROM "Logradouro"
     WHERE ativo = true AND geom IS NOT NULL
       AND ST_DWithin(geom::geography, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326)::geography, 15)
   `

@@ -11,7 +11,7 @@ import {
   verificarDuplicidade,
   imoveisPorProprietario,
 } from '../services/imovelService'
-import { atualizarGeometria, obterGeometria } from '../services/geoService'
+import { atualizarGeometria, obterGeometria, salvarAjusteTopologico } from '../services/geoService'
 import { listarUnidades, criarUnidade, editarUnidade, excluirUnidade } from '../services/uaService'
 
 const router = Router()
@@ -121,6 +121,19 @@ router.put('/:id/geometria', auth, permitir('admin', 'editor'), async (req, res)
   try {
     const imovel = await atualizarGeometria(id, req.body, req.user!)
     res.json(imovel)
+  } catch (e) {
+    tratarErro(e, res)
+  }
+})
+
+router.put('/:id/ajuste-topologico', auth, permitir('admin', 'editor'), async (req, res) => {
+  const id = Number(req.params.id)
+  if (Number.isNaN(id)) return res.status(400).json({ erro: 'id inválido' })
+
+  try {
+    const vizinhosAfetados = Array.isArray(req.body.vizinhosAfetados) ? req.body.vizinhosAfetados : []
+    const imoveis = await salvarAjusteTopologico(id, req.body.geom, vizinhosAfetados, req.user!)
+    res.json(imoveis)
   } catch (e) {
     tratarErro(e, res)
   }

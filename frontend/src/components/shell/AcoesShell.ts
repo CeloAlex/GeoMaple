@@ -23,5 +23,4 @@ export type AcoesShell = {
   onRelatorioInconsistencias: () => void
   onRelatorioProprietario: () => void
   onManualSistema: () => void
-  onMaterialDivulgacao: () => void
 }

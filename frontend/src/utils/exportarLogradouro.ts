@@ -4,7 +4,13 @@ import { mosaicoSatelite } from './fichaMapa'
 import { api } from '../api/client'
 import { TIPO_LABEL, SITUACAO_LABEL } from '../components/Logradouros/types'
 
-export type LogradouroResumo = { nome: string; tipo: string; situacao: string }
+export type LogradouroResumo = {
+  nome: string
+  tipo: string
+  situacao: string
+  cep?: string | null
+  leiNumero?: string | null
+}
 
 export type ResultadoValidacaoDenominacao = {
   homonimos: LogradouroResumo[]
@@ -25,7 +31,13 @@ function paragrafoIdentificacao(sobrepostos: LogradouroResumo[]) {
   }
   const oficiais = sobrepostos.filter((s) => s.situacao === 'oficial')
   if (oficiais.length > 0) {
-    return `Certifico, ainda, que o logradouro indicado no croqui de localização <strong>possui denominação oficial conhecida</strong>: ${oficiais.map((o) => o.nome).join(', ')}.`
+    const lista = oficiais
+      .map((o) => {
+        const dados = [o.leiNumero ? `Lei nº ${o.leiNumero}` : null, o.cep ? `CEP ${o.cep}` : null].filter(Boolean)
+        return dados.length > 0 ? `${o.nome} (${dados.join(', ')})` : o.nome
+      })
+      .join(', ')
+    return `Certifico, ainda, que o logradouro indicado no croqui de localização <strong>possui denominação oficial conhecida</strong>: ${lista}.`
   }
   const lista = sobrepostos.map((s) => `${s.nome} (${SITUACAO_LABEL[s.situacao] ?? s.situacao})`).join(', ')
   return `Certifico, ainda, que o logradouro indicado no croqui de localização possui denominação <strong>não oficial</strong> conhecida: ${lista}.`

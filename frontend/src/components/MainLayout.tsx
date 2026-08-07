@@ -20,6 +20,7 @@ import type { DestinoImportacao } from './Sidebar/Ferramentas'
 import { api } from '../api/client'
 import { centroidePoligono } from '../utils/geo'
 import { exportarImovelGeoJSON, exportarImovelKML } from '../utils/exportarImovel'
+import { imprimirMaterialDivulgacao } from '../utils/materialDivulgacao'
 import { useMunicipioStore } from '../store/municipioStore'
 import type {
   ConflitoGeometria,
@@ -267,7 +268,6 @@ export function MainLayout() {
     onRelatorioInconsistencias: () => setRelatorioInconsistenciasAberto(true),
     onRelatorioProprietario: () => setRelatorioProprietarioAberto(true),
     onManualSistema: () => setManualSistemaAberto(true),
-    onMaterialDivulgacao: () => window.open('/divulgacao/index.html', '_blank'),
   }
 
   return (
@@ -435,14 +435,12 @@ export function MainLayout() {
               Cadastro, georreferenciamento e gestão de imóveis urbanos, quadras, delimitações
               provisórias, unidades autônomas e integração SINTER/CADURB.
             </p>
-            <a
-              href="/divulgacao/index.html"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 block text-center text-xs font-medium text-[#2980b9] hover:underline"
+            <button
+              onClick={() => imprimirMaterialDivulgacao()}
+              className="mt-4 block w-full text-center text-xs font-medium text-[#2980b9] hover:underline"
             >
               📄 Ver material de divulgação
-            </a>
+            </button>
             <button
               onClick={() => setSobreAberto(false)}
               className="mt-3 w-full rounded bg-navy py-2 text-sm font-medium text-white hover:bg-navy/90"
