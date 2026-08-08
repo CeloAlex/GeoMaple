@@ -10,11 +10,19 @@ type ConflitoSobreposicao = { id: number; insc: string; prop: string }
 
 // Uma geometria ajustada à mão (ex.: Ajuste Topológico, com snap visual num vértice de um
 // vizinho) praticamente nunca produz um toque geometricamente EXATO em ponto flutuante —
-// sobra sempre uma fresta/sobreposição de poucos cm² ("sliver"). Exigir ST_Touches exato
-// (como antes) rejeitava com 409 até ajustes corretos. Só tratamos como conflito real
-// quando a área da interseção ultrapassa esta tolerância — pequena o bastante para nunca
-// mascarar a sobreposição real de dois lotes urbanos distintos.
-const TOLERANCIA_SOBREPOSICAO_M2 = 0.5
+// sobra sempre uma fresta/sobreposição fina ao longo da aresta ajustada ("sliver"). Exigir
+// ST_Touches exato (como antes) rejeitava com 409 até ajustes corretos.
+//
+// Um limiar de ÁREA absoluta (testado antes, 0.5 m²) não funciona: a área de uma fresta
+// cresce com o COMPRIMENTO da aresta compartilhada, não só com sua espessura — uma sobra de
+// apenas 3cm de largura ao longo de uma divisa de 20m já dá 0.6 m², e seria barrada mesmo
+// sendo claramente só uma sobra de ajuste manual, não uma sobreposição real entre lotes.
+// Por isso o teste é de LARGURA, não de área: erodemos (buffer negativo) a interseção por
+// essa tolerância — se a sobra "desaparece" (não sobra área depois de encolhida), é fina
+// demais para ser uma sobreposição real, não importa o quão comprida seja. Só sobreposições
+// que continuam tendo área depois de erodidas — ou seja, que são largas o bastante para não
+// serem apenas uma fresta de encaixe — contam como conflito de verdade.
+const TOLERANCIA_SOBREPOSICAO_LARGURA_M = 0.5
 
 // Reusada tanto pelo salvamento de um único lote (atualizarGeometria) quanto pelo Ajuste
 // Topológico em lote (salvarAjusteTopologico) — roda dentro da mesma transação do
@@ -26,7 +34,10 @@ async function verificarConflitoSobreposicao(tx: Prisma.TransactionClient, idsEx
     SELECT id, insc, prop FROM "Imovel"
     WHERE ativo = true AND geom IS NOT NULL AND id NOT IN (${Prisma.join(idsExcluir)})
       AND ST_Intersects(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))
-      AND ST_Area(ST_Intersection(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))::geography) > ${TOLERANCIA_SOBREPOSICAO_M2}
+      AND ST_Area(ST_Buffer(
+        ST_Intersection(geom, ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326))::geography,
+        ${-TOLERANCIA_SOBREPOSICAO_LARGURA_M}
+      )) > 0
   `
 }
 
@@ -86,8 +97,8 @@ export async function atualizarGeometria(
     if (dados.geom !== undefined) {
       const geojson = JSON.stringify(dados.geom as PolygonGeoJSON)
 
-      // Bloqueia sobreposição real com outro terreno já cadastrado — mas não uma sobra de
-      // poucos cm² (ver TOLERANCIA_SOBREPOSICAO_M2), já que compartilhar uma aresta entre
+      // Bloqueia sobreposição real com outro terreno já cadastrado — mas não uma fresta fina
+      // (ver TOLERANCIA_SOBREPOSICAO_LARGURA_M), já que compartilhar uma aresta entre
       // confrontantes é justamente o resultado desejado do Ajuste Topológico. `geom IS NOT
       // NULL` já exclui toda Unidade Autônoma (nunca tem geometria própria — sempre NULL),
       // então nenhuma UA nunca aparece aqui nem como candidata a conflito nem como alvo da
